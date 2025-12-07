@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="description" content="Free, open-source web application for converting PDF music scores into interactive accordion fingerings">
+    <meta name="author" content="Akkordio">
+    <meta name="theme-color" content="#2c3e50">
+
+    <title>Akkordio - Accordion Fingering Visualizer</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/main.css">
+
+    <!-- Preconnect to backend API -->
+    <link rel="preconnect" href="http://localhost:8000">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Akkordio</h1>
+            <p class="header__subtitle">Accordion Fingering Visualizer</p>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main">
+        <!-- Upload Section -->
+        <section class="upload-section" id="uploadSection">
+            <div class="upload-container">
+                <h2 class="section-title">Upload Music Score</h2>
+
+                <!-- File Upload Area -->
+                <div class="upload-area" id="uploadArea">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p class="upload-text">
+                        Drag & drop your PDF score here<br>
+                        <span class="upload-text--small">or click to browse</span>
+                    </p>
+                    <input type="file" id="fileInput" accept=".pdf" class="upload-input" aria-label="Upload PDF file">
+                </div>
+
+                <!-- File Info -->
+                <div class="file-info" id="fileInfo" style="display: none;">
+                    <p class="file-info__name" id="fileName"></p>
+                    <p class="file-info__size" id="fileSize"></p>
+                </div>
+
+                <!-- Layout Selection -->
+                <div class="layout-selection">
+                    <div class="layout-group">
+                        <label for="trebleLayout" class="layout-label">Treble (Right Hand)</label>
+                        <select id="trebleLayout" class="layout-select" aria-label="Select treble layout">
+                            <option value="c_system_5row_standard">C-System 5-Row</option>
+                            <option value="c_system_4row_standard">C-System 4-Row</option>
+                            <option value="c_system_3row_standard">C-System 3-Row</option>
+                            <option value="b_system_5row_standard">B-System 5-Row</option>
+                            <option value="b_system_4row_standard">B-System 4-Row</option>
+                            <option value="b_system_3row_standard">B-System 3-Row</option>
+                        </select>
+                    </div>
+
+                    <div class="layout-group">
+                        <label for="bassLayout" class="layout-label">Bass (Left Hand)</label>
+                        <select id="bassLayout" class="layout-select" aria-label="Select bass layout">
+                            <option value="stradella_120_standard">Stradella 120-Bass</option>
+                            <option value="stradella_96_standard">Stradella 96-Bass</option>
+                            <option value="stradella_72_standard">Stradella 72-Bass</option>
+                            <option value="freebass_c_system">Free-Bass C-System</option>
+                            <option value="freebass_b_system">Free-Bass B-System</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Process Button -->
+                <button id="processBtn" class="btn btn--primary" disabled aria-label="Process score">
+                    Process Score
+                </button>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-bar__fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">Processing...</p>
+            </div>
+        </section>
+
+        <!-- Visualization Section -->
+        <section class="visualization-section" id="visualizationSection" style="display: none;">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="control-group">
+                    <!-- Playback Controls -->
+                    <div class="playback-controls">
+                        <button id="playBtn" class="btn btn--control" aria-label="Play" title="Play">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </button>
+                        <button id="pauseBtn" class="btn btn--control" aria-label="Pause" title="Pause" style="display: none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 4h4v16H6zM14 4h4v16h-4z"/>
+                            </svg>
+                        </button>
+                        <button id="stopBtn" class="btn btn--control" aria-label="Stop" title="Stop">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="6" width="12" height="12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Tempo Control -->
+                    <div class="tempo-control">
+                        <label for="tempoSlider" class="control-label">Tempo: <span id="tempoValue">100</span>%</label>
+                        <input type="range" id="tempoSlider" min="50" max="150" value="100" class="slider" aria-label="Tempo control">
+                    </div>
+                </div>
+
+                <!-- Info Display -->
+                <div class="info-display">
+                    <div class="info-item">
+                        <span class="info-label">Measure:</span>
+                        <span class="info-value" id="currentMeasure">1</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Key:</span>
+                        <span class="info-value" id="keySignature">C Major</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Time:</span>
+                        <span class="info-value" id="timeSignature">4/4</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyboards Display -->
+            <div class="keyboards-container">
+                <!-- Treble Keyboard -->
+                <div class="keyboard-panel">
+                    <h3 class="keyboard-title">Treble (Right Hand)</h3>
+                    <div class="keyboard-wrapper" id="trebleKeyboardWrapper">
+                        <svg id="trebleKeyboard" class="keyboard-svg" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Keyboard will be rendered here by JavaScript -->
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Bass Keyboard -->
+                <div class="keyboard-panel">
+                    <h3 class="keyboard-title">Bass (Left Hand)</h3>
+                    <div class="keyboard-wrapper" id="bassKeyboardWrapper">
+                        <svg id="bassKeyboard" class="keyboard-svg" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Keyboard will be rendered here by JavaScript -->
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error Display -->
+        <div class="error-message" id="errorMessage" style="display: none;" role="alert">
+            <p class="error-message__text" id="errorText"></p>
+            <button class="error-message__close" id="closeError" aria-label="Close error message">×</button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer__text">
+            Akkordio is free and open-source software.
+            <a href="https://github.com/akkordio/akkordio" class="footer__link" target="_blank" rel="noopener">View on GitHub</a>
+        </p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>
