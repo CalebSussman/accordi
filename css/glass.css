@@ -1,0 +1,296 @@
+/**
+ * Akkordio - Liquid Glass Components
+ * Frosted glass effects with squircle shapes
+ */
+
+/* Base glass mixin */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+
+/* Glass shadow variants */
+.glass-shadow-light {
+  box-shadow:
+    0 8px 32px var(--shadow-soft),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 0 0 1px rgba(212, 175, 55, 0.05);
+}
+
+[data-theme="dark"] .glass-shadow-light {
+  box-shadow:
+    0 8px 32px var(--shadow-medium),
+    0 1px 0 rgba(212, 175, 55, 0.1) inset,
+    0 0 0 1px rgba(212, 175, 55, 0.05);
+}
+
+/* Floating Navigation Bar */
+.nav-bar {
+  position: fixed;
+  top: var(--spacing-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - var(--spacing-xl));
+  max-width: 1400px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: var(--z-nav);
+}
+
+.nav-bar.glass {
+  border-radius: var(--radius-lg);
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.logo {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+/* Playback Bar */
+.playback-bar {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - var(--spacing-xl));
+  max-width: 1400px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  z-index: var(--z-playback);
+}
+
+.playback-bar.glass {
+  border-radius: var(--radius-lg);
+}
+
+/* Accordion Panel */
+.accordion-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  z-index: var(--z-accordion-panel);
+  transition: all var(--transition-base);
+}
+
+[data-theme="dark"] .accordion-panel {
+  background: rgba(20, 20, 20, 0.9);
+}
+
+/* Draggable header for floating mode */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.panel-header.draggable {
+  cursor: grab;
+}
+
+.panel-header.draggable:active {
+  cursor: grabbing;
+}
+
+.drag-indicator {
+  display: flex;
+  gap: 4px;
+  opacity: 0.5;
+}
+
+.drag-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--gold-primary);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-base);
+  min-height: 44px; /* Touch-friendly */
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold-secondary), var(--gold-primary));
+  color: white;
+  border: 1px solid var(--gold-primary);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+}
+
+.btn-secondary:hover {
+  background: var(--score-bg);
+  border-color: var(--gold-primary);
+}
+
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-round);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: var(--score-bg);
+  border-color: var(--gold-primary);
+}
+
+/* Play button (gold, circular) */
+.btn-play {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-round);
+  background: linear-gradient(135deg, var(--gold-secondary), var(--gold-primary));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.3);
+}
+
+.btn-play:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(212, 175, 55, 0.5);
+}
+
+.btn-play:active {
+  transform: scale(0.98);
+}
+
+/* Toggle buttons (hand selection) */
+.btn-toggle-group {
+  display: flex;
+  gap: 4px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.btn-toggle {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: calc(var(--radius-sm) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-toggle.active {
+  background: linear-gradient(135deg, var(--gold-secondary), var(--gold-primary));
+  color: white;
+}
+
+.btn-toggle:not(.active):hover {
+  color: var(--text-primary);
+  background: rgba(212, 175, 55, 0.1);
+}
+
+/* Progress bar */
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-secondary), var(--gold-primary));
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+/* Settings panel (dropdown) */
+.settings-panel {
+  position: absolute;
+  top: calc(100% + var(--spacing-sm));
+  right: 0;
+  min-width: 300px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: 0 8px 32px var(--shadow-medium);
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: all var(--transition-base);
+}
+
+.settings-panel.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Animations */
+@keyframes goldPulse {
+  0% { transform: scale(1); }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+  }
+  100% { transform: scale(1.1); }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.gold-pulse {
+  animation: goldPulse 0.6s ease-in-out;
+}

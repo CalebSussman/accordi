@@ -1,0 +1,82 @@
+/**
+ * Akkordio - Theme Variables
+ * Liquid glass design with light and dark modes
+ */
+
+:root {
+  /* Light Mode (Default) */
+  --bg-ambient: #f5f5f7;
+  --score-bg: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(212, 175, 55, 0.15);
+  --text-primary: #1d1d1f;
+  --text-secondary: #86868b;
+  --gold-primary: #d4af37;
+  --gold-secondary: #b8860b;
+  --gold-highlight: #f4d03f;
+  --button-white: linear-gradient(145deg, #ffffff, #f5f5f5);
+  --button-black: linear-gradient(145deg, #3d3d3f, #2d2d2f);
+  --shadow-soft: rgba(0, 0, 0, 0.06);
+  --shadow-medium: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+  /* Dark Mode */
+  --bg-ambient: #0a0a0a;
+  --score-bg: #1a1a1a;
+  --glass-bg: rgba(20, 20, 20, 0.7);
+  --glass-border: rgba(212, 175, 55, 0.25);
+  --text-primary: #ffffff;
+  --text-secondary: #999999;
+  --gold-primary: #d4af37;
+  --gold-secondary: #b8860b;
+  --gold-highlight: #f4d03f;
+  --button-white: linear-gradient(145deg, #ffffff, #f0f0f0);
+  --button-black: linear-gradient(145deg, #2d2d2f, #0a0a0a);
+  --shadow-soft: rgba(0, 0, 0, 0.3);
+  --shadow-medium: rgba(0, 0, 0, 0.5);
+}
+
+/* Typography */
+:root {
+  --font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* Spacing */
+:root {
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+}
+
+/* Border Radius (Squircles) */
+:root {
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-round: 50%;
+}
+
+/* Transitions */
+:root {
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Z-index layers */
+:root {
+  --z-score: 1;
+  --z-accordion-panel: 10;
+  --z-nav: 100;
+  --z-playback: 100;
+  --z-modal: 1000;
+}

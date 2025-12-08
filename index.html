@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="description" content="Free, open-source web application for converting PDF music scores into interactive accordion fingerings">
+    <meta name="author" content="Akkordio">
+    <meta name="theme-color" content="#d4af37">
+
+    <title>Akkordio - Accordion Fingering Visualizer</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/glass.css">
+    <link rel="stylesheet" href="css/score.css">
+    <link rel="stylesheet" href="css/accordion.css">
+    <link rel="stylesheet" href="css/responsive.css">
+
+    <!-- Preconnect to backend API -->
+    <link rel="preconnect" href="http://localhost:8000">
+
+    <!-- OSMD (will be loaded via CDN for now, npm install later) -->
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.6/build/opensheetmusicdisplay.min.js"></script>
+</head>
+<body>
+    <!-- Floating Navigation Bar -->
+    <nav class="nav-bar glass glass-shadow-light">
+        <div class="nav-left">
+            <h1 class="logo gold-gradient-text">Akkordio</h1>
+        </div>
+        <div class="nav-right">
+            <button id="loadPreviousBtn" class="btn btn-secondary btn-text-mobile-hide">
+                Load Previous
+            </button>
+            <button id="uploadBtn" class="btn btn-primary">
+                Upload New Score
+            </button>
+            <button id="settingsBtn" class="btn-icon" aria-label="Settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 1v6m0 6v6m-6-12h6m6 0h-6m-6 6h6m6 0h-6M12 1a11 11 0 0 0 0 22 11 11 0 0 0 0-22"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Settings Panel (dropdown) -->
+        <div id="settingsPanel" class="settings-panel">
+            <h3 style="margin-bottom: var(--spacing-md); font-size: 1.125rem;">Settings</h3>
+
+            <!-- Theme Toggle -->
+            <div style="margin-bottom: var(--spacing-lg);">
+                <label style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">Theme</label>
+                <div class="btn-toggle-group">
+                    <button id="themeLight" class="btn-toggle active">Light</button>
+                    <button id="themeDark" class="btn-toggle">Dark</button>
+                </div>
+            </div>
+
+            <!-- Layout Selection -->
+            <div style="margin-bottom: var(--spacing-lg);">
+                <label for="trebleLayoutSelect" style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">Treble Layout</label>
+                <select id="trebleLayoutSelect">
+                    <option value="c_system_5row">C-System 5-Row</option>
+                    <option value="c_system_4row">C-System 4-Row</option>
+                    <option value="c_system_3row">C-System 3-Row</option>
+                    <option value="b_system_5row">B-System 5-Row</option>
+                    <option value="b_system_4row">B-System 4-Row</option>
+                    <option value="b_system_3row">B-System 3-Row</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="bassLayoutSelect" style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">Bass Layout</label>
+                <select id="bassLayoutSelect">
+                    <option value="stradella_120">Stradella 120-Bass</option>
+                    <option value="stradella_96">Stradella 96-Bass</option>
+                    <option value="stradella_72">Stradella 72-Bass</option>
+                    <option value="freebass_c_5row">Free-Bass C-System</option>
+                    <option value="freebass_b_5row">Free-Bass B-System</option>
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Score Container (Base Layer - OSMD) -->
+    <div id="score-container">
+        <!-- Empty state (before upload) -->
+        <div id="emptyState" class="score-empty-state">
+            <h2>Welcome to Akkordio</h2>
+            <p>Upload a PDF music score to visualize accordion fingerings with synchronized playback</p>
+
+            <!-- Upload Zone -->
+            <div id="uploadZone" class="upload-zone">
+                <div class="upload-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M52 42v12H12V42M32 12v32M20 24l12-12 12 12"/>
+                    </svg>
+                </div>
+                <div class="upload-text">Click to upload or drag PDF here</div>
+                <div class="upload-hint">Maximum file size: 10MB</div>
+                <input type="file" id="fileInput" accept=".pdf" hidden>
+            </div>
+        </div>
+
+        <!-- Processing overlay -->
+        <div id="processingOverlay" class="processing-overlay hidden">
+            <div class="spinner"></div>
+            <div class="processing-text" id="processingText">Processing your score...</div>
+            <div class="processing-progress tabular-nums" id="processingProgress">0%</div>
+        </div>
+
+        <!-- OSMD will render here after processing -->
+        <div id="osmd-container"></div>
+    </div>
+
+    <!-- Accordion Panel (Floating Glass) -->
+    <div id="accordionPanel" class="accordion-panel split hidden">
+        <!-- Draggable Header -->
+        <div class="panel-header draggable">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <div class="drag-indicator">
+                    <div class="drag-dot"></div>
+                    <div class="drag-dot"></div>
+                    <div class="drag-dot"></div>
+                </div>
+                <h3 style="font-size: 1.125rem; font-weight: var(--font-weight-semibold);">Keyboard</h3>
+            </div>
+
+            <!-- Hand Toggle -->
+            <div class="btn-toggle-group">
+                <button id="toggleRight" class="btn-toggle active">Right</button>
+                <button id="toggleLeft" class="btn-toggle">Left</button>
+                <button id="toggleBoth" class="btn-toggle">Both</button>
+            </div>
+        </div>
+
+        <!-- Keyboard Container -->
+        <div class="keyboard-container">
+            <!-- Treble Keyboard SVG -->
+            <svg id="trebleKeyboard" class="keyboard-svg" style="display: block;"></svg>
+
+            <!-- Bass Keyboard SVG -->
+            <svg id="bassKeyboard" class="keyboard-svg" style="display: none;"></svg>
+
+            <!-- Panel Info -->
+            <div class="panel-info">
+                <div class="panel-info-item">
+                    <span class="panel-info-label">Layout</span>
+                    <span class="panel-info-value" id="currentLayout">C-System 5-Row</span>
+                </div>
+                <div class="panel-info-item">
+                    <span class="panel-info-label">Range</span>
+                    <span class="panel-info-value" id="layoutRange">C3-C7</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playback Bar (Floating Glass) -->
+    <div id="playbackBar" class="playback-bar glass glass-shadow-light hidden">
+        <!-- Play/Pause Button -->
+        <button id="playBtn" class="btn-play" aria-label="Play">
+            <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                <path d="M6 4h4v16H6zM14 4h4v16h-4z"/>
+            </svg>
+        </button>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar" style="flex: 1;">
+            <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
+        </div>
+
+        <!-- Time Display -->
+        <div class="playback-info" style="display: flex; gap: var(--spacing-md); align-items: center;">
+            <span class="tabular-nums" id="currentTime">0:00</span>
+            <span class="musical-symbol" style="color: var(--text-secondary);">♩</span>
+            <span class="tabular-nums" id="tempo">= 120</span>
+        </div>
+    </div>
+
+    <!-- Error Toast (if needed) -->
+    <div id="errorToast" class="hidden" style="position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: var(--glass-bg); backdrop-filter: blur(40px); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: var(--radius-md); padding: var(--spacing-md) var(--spacing-lg); z-index: 1000; max-width: 500px;">
+        <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="errorText" style="flex: 1;"></span>
+            <button id="closeError" class="btn-icon" style="width: 32px; height: 32px;" aria-label="Close">×</button>
+        </div>
+    </div>
+
+    <!-- SVG Gradients (for keyboard buttons) -->
+    <svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <linearGradient id="whiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#f5f5f5;stop-opacity:1" />
+            </linearGradient>
+            <linearGradient id="blackGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#3d3d3f;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#2d2d2f;stop-opacity:1" />
+            </linearGradient>
+            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#d4af37;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#f4d03f;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Scripts -->
+    <script src="js/theme-toggle.js"></script>
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>
