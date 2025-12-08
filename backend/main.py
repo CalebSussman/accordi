@@ -25,6 +25,20 @@ from models import (
     JobStatus
 )
 
+# Import processing modules
+from omr import create_omr_processor
+from parser import create_parser
+from layout_generator import generate_layout, get_preset_layout
+from treble_mapping import create_treble_mapper
+from bass_mapping import create_bass_mapper
+import json
+import asyncio
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Akkordio API",
@@ -55,6 +69,136 @@ PROCESSED_DIR.mkdir(exist_ok=True)
 
 # In-memory job storage (replace with database in production)
 jobs: Dict[str, JobStatus] = {}
+
+
+async def process_pdf_background(job_id: str, config: ProcessRequest):
+    """
+    Background task to process PDF through complete pipeline.
+
+    Pipeline:
+    1. OMR: PDF → MusicXML (Audiveris)
+    2. Parse: MusicXML → Musical events (music21)
+    3. Generate layouts: Based on user configuration
+    4. Map: Musical events → Button positions
+    5. Save results
+
+    Args:
+        job_id: Unique job identifier
+        config: Processing configuration
+    """
+    try:
+        pdf_path = UPLOAD_DIR / f"{job_id}.pdf"
+        output_dir = PROCESSED_DIR / job_id
+        output_dir.mkdir(exist_ok=True)
+
+        logger.info(f"Starting processing for job {job_id}")
+
+        # Update status: OMR Processing
+        jobs[job_id].status = "processing"
+        jobs[job_id].progress = 10
+        jobs[job_id].message = "Converting PDF to MusicXML..."
+
+        # Step 1: OMR Processing
+        omr_processor = create_omr_processor()
+        musicxml_path, omr_metadata = await omr_processor.process_pdf(
+            pdf_path,
+            output_dir
+        )
+
+        jobs[job_id].progress = 30
+        jobs[job_id].message = "Parsing music notation..."
+
+        # Step 2: Parse MusicXML
+        parser = create_parser()
+        treble_events, bass_events, music_metadata = await parser.parse_musicxml(
+            musicxml_path
+        )
+
+        jobs[job_id].progress = 50
+        jobs[job_id].message = "Generating keyboard layouts..."
+
+        # Step 3: Generate Layouts
+        # Get layout configuration from request
+        treble_layout_config = config.options.get("treble_layout", {})
+        bass_layout_config = config.options.get("bass_layout", {})
+
+        # Use preset or custom configuration
+        if "preset" in treble_layout_config:
+            treble_layout = get_preset_layout(treble_layout_config["preset"])
+        else:
+            treble_layout = generate_layout(
+                system_type=treble_layout_config.get("system", "c-system"),
+                rows=treble_layout_config.get("rows", 5),
+                columns=treble_layout_config.get("columns", 12),
+                start_midi=treble_layout_config.get("start_midi", 48)
+            )
+
+        if "preset" in bass_layout_config:
+            bass_layout = get_preset_layout(bass_layout_config["preset"])
+        else:
+            bass_layout = generate_layout(
+                system_type=bass_layout_config.get("system", "stradella"),
+                rows=bass_layout_config.get("rows"),
+                columns=bass_layout_config.get("columns", 20),
+                start_midi=bass_layout_config.get("start_midi")
+            )
+
+        jobs[job_id].progress = 60
+        jobs[job_id].message = "Mapping notes to buttons..."
+
+        # Step 4: Map Events to Buttons
+        treble_mapper = create_treble_mapper(treble_layout)
+        mapped_treble_events = treble_mapper.map_events(treble_events)
+
+        bass_mapper = create_bass_mapper(bass_layout)
+        mapped_bass_events = bass_mapper.map_events(bass_events)
+
+        jobs[job_id].progress = 80
+        jobs[job_id].message = "Finalizing results..."
+
+        # Validate mappings
+        treble_validation = treble_mapper.validate_mapping(mapped_treble_events)
+        bass_validation = bass_mapper.validate_mapping(mapped_bass_events)
+
+        # Step 5: Save Results
+        result = {
+            "job_id": job_id,
+            "treble_events": mapped_treble_events,
+            "bass_events": mapped_bass_events,
+            "metadata": {
+                **music_metadata,
+                "omr_warnings": omr_metadata.get("warnings", []),
+                "treble_layout": treble_layout["system"],
+                "bass_layout": bass_layout["system"],
+                "treble_mapping_success": treble_validation["success_rate"],
+                "bass_mapping_success": bass_validation["success_rate"]
+            },
+            "treble_layout": treble_layout,
+            "bass_layout": bass_layout,
+            "validation": {
+                "treble": treble_validation,
+                "bass": bass_validation
+            }
+        }
+
+        # Save to file
+        result_path = output_dir / "result.json"
+        async with aiofiles.open(result_path, 'w') as f:
+            await f.write(json.dumps(result, indent=2))
+
+        # Update job status
+        jobs[job_id].status = "completed"
+        jobs[job_id].progress = 100
+        jobs[job_id].message = "Processing complete"
+        jobs[job_id].completed_at = datetime.utcnow()
+
+        logger.info(f"Job {job_id} completed successfully")
+
+    except Exception as e:
+        logger.error(f"Job {job_id} failed: {str(e)}", exc_info=True)
+        jobs[job_id].status = "failed"
+        jobs[job_id].error = str(e)
+        jobs[job_id].message = f"Processing failed: {str(e)}"
 
 
 @app.get("/health")
@@ -160,8 +304,8 @@ async def process_score(
     jobs[job_id].progress = 10
     jobs[job_id].message = "Starting OMR processing..."
 
-    # TODO: Add background task for actual processing
-    # background_tasks.add_task(process_pdf_background, job_id, request)
+    # Start background processing
+    background_tasks.add_task(process_pdf_background, job_id, request)
 
     return ProcessResponse(
         job_id=job_id,
@@ -220,8 +364,8 @@ async def get_results(job_id: str) -> MappingResult:
             detail=f"Job {job_id} is not completed yet. Current status: {jobs[job_id].status}"
         )
 
-    # TODO: Load actual results from processed directory
-    result_path = PROCESSED_DIR / f"{job_id}_result.json"
+    # Load actual results from processed directory
+    result_path = PROCESSED_DIR / job_id / "result.json"
 
     if not result_path.exists():
         raise HTTPException(
@@ -229,13 +373,12 @@ async def get_results(job_id: str) -> MappingResult:
             detail=f"Results for job {job_id} not found"
         )
 
-    # Return placeholder for now
-    return MappingResult(
-        job_id=job_id,
-        treble_events=[],
-        bass_events=[],
-        metadata={}
-    )
+    # Read and return results
+    async with aiofiles.open(result_path, 'r') as f:
+        content = await f.read()
+        result_data = json.loads(content)
+
+    return result_data
 
 
 @app.get("/midi/{job_id}")
@@ -296,94 +439,83 @@ async def get_musicxml(job_id: str) -> FileResponse:
     )
 
 
-@app.get("/layouts/treble")
-async def list_treble_layouts() -> Dict[str, list]:
+@app.get("/layouts/presets")
+async def list_layout_presets() -> Dict:
     """
-    List available treble (right-hand) accordion layouts.
+    List available preset layout configurations.
 
     Returns:
-        Dict with list of available layout IDs
+        Dict with available presets for treble and bass
     """
-    layouts_dir = Path("layouts/treble")
-    layouts = []
+    from layout_generator import PRESET_CONFIGS
 
-    if layouts_dir.exists():
-        layouts = [f.stem for f in layouts_dir.glob("*.json")]
+    treble_presets = [
+        name for name, config in PRESET_CONFIGS.items()
+        if config["type"] in ["c-system", "b-system"]
+    ]
 
-    return {"layouts": layouts}
+    bass_presets = [
+        name for name, config in PRESET_CONFIGS.items()
+        if config["type"] in ["stradella", "freebass-c", "freebass-b"]
+    ]
+
+    return {
+        "treble": treble_presets,
+        "bass": bass_presets,
+        "all": list(PRESET_CONFIGS.keys())
+    }
 
 
-@app.get("/layouts/bass")
-async def list_bass_layouts() -> Dict[str, list]:
+@app.get("/layouts/preset/{preset_name}")
+async def get_preset_layout_endpoint(preset_name: str) -> Dict:
     """
-    List available bass (left-hand) accordion layouts.
-
-    Returns:
-        Dict with list of available layout IDs
-    """
-    layouts_dir = Path("layouts/bass")
-    layouts = []
-
-    if layouts_dir.exists():
-        layouts = [f.stem for f in layouts_dir.glob("*.json")]
-
-    return {"layouts": layouts}
-
-
-@app.get("/layouts/treble/{layout_id}")
-async def get_treble_layout(layout_id: str) -> Dict:
-    """
-    Get specific treble layout configuration.
+    Get a dynamically generated layout from a preset.
 
     Args:
-        layout_id: Layout identifier
+        preset_name: Preset name (e.g., 'c_system_5row', 'stradella_120')
 
     Returns:
-        Dict containing layout configuration
+        Generated layout configuration
 
     Raises:
-        HTTPException: If layout not found
+        HTTPException: If preset not found
     """
-    layout_path = Path(f"layouts/treble/{layout_id}.json")
-
-    if not layout_path.exists():
+    try:
+        layout = get_preset_layout(preset_name)
+        return layout
+    except ValueError as e:
         raise HTTPException(
             status_code=404,
-            detail=f"Treble layout '{layout_id}' not found"
+            detail=str(e)
         )
 
-    async with aiofiles.open(layout_path, 'r') as f:
-        import json
-        content = await f.read()
-        return json.loads(content)
 
-
-@app.get("/layouts/bass/{layout_id}")
-async def get_bass_layout(layout_id: str) -> Dict:
+@app.post("/layouts/generate")
+async def generate_custom_layout(config: Dict) -> Dict:
     """
-    Get specific bass layout configuration.
+    Generate a custom layout dynamically.
 
     Args:
-        layout_id: Layout identifier
+        config: Layout configuration dict with:
+            - system_type: 'c-system', 'b-system', 'freebass-c', 'freebass-b', 'stradella'
+            - rows: Number of rows (optional for stradella)
+            - columns: Number of columns
+            - start_midi: Starting MIDI note
 
     Returns:
-        Dict containing layout configuration
+        Generated layout configuration
 
     Raises:
-        HTTPException: If layout not found
+        HTTPException: If invalid configuration
     """
-    layout_path = Path(f"layouts/bass/{layout_id}.json")
-
-    if not layout_path.exists():
+    try:
+        layout = generate_layout(**config)
+        return layout
+    except (ValueError, TypeError) as e:
         raise HTTPException(
-            status_code=404,
-            detail=f"Bass layout '{layout_id}' not found"
+            status_code=400,
+            detail=f"Invalid layout configuration: {str(e)}"
         )
-
-    async with aiofiles.open(layout_path, 'r') as f:
-        import json
-        content = await f.read()
-        return json.loads(content)
 
 
 if __name__ == "__main__":

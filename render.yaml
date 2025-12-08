@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: akkordio-backend
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: |
+      # Install system dependencies
+      apt-get update
+      apt-get install -y openjdk-17-jre-headless wget unzip
+
+      # Install Audiveris
+      wget https://github.com/Audiveris/audiveris/releases/download/5.8.1/Audiveris-5.8.1-linux-x86_64.tar.gz
+      tar -xzf Audiveris-5.8.1-linux-x86_64.tar.gz
+      mv Audiveris-5.8.1 /opt/audiveris
+
+      # Install Python dependencies
+      pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: AUDIVERIS_PATH
+        value: /opt/audiveris/bin/Audiveris
+      - key: JAVA_HOME
+        value: /usr/lib/jvm/java-17-openjdk-amd64
+    healthCheckPath: /health
+    autoDeploy: true

@@ -1,0 +1,207 @@
+/**
+ * Akkordio - Responsive Styles
+ * Mobile and tablet optimizations
+ */
+
+/* Desktop: 1200px+ (default styles above) */
+
+/* Tablet: 768px - 1199px */
+@media (max-width: 1199px) {
+  .nav-bar {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .playback-bar {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .logo {
+    font-size: 1.25rem;
+  }
+
+  /* Hide some secondary nav items on tablet */
+  .nav-secondary-item {
+    display: none;
+  }
+}
+
+/* Mobile: < 768px */
+@media (max-width: 768px) {
+  :root {
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+    --spacing-xxl: 32px;
+  }
+
+  /* Smaller nav bar */
+  .nav-bar {
+    top: var(--spacing-md);
+    width: calc(100% - var(--spacing-lg));
+    padding: var(--spacing-xs) var(--spacing-md);
+  }
+
+  .logo {
+    font-size: 1.125rem;
+  }
+
+  .nav-right {
+    gap: var(--spacing-xs);
+  }
+
+  /* Compact playback bar */
+  .playback-bar {
+    bottom: var(--spacing-md);
+    width: calc(100% - var(--spacing-lg));
+    padding: var(--spacing-xs) var(--spacing-md);
+    flex-wrap: wrap;
+  }
+
+  .btn-play {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Stack controls */
+  .playback-controls {
+    flex: 1;
+    min-width: 100%;
+    order: 2;
+  }
+
+  .playback-info {
+    display: none; /* Hide on mobile */
+  }
+
+  /* Full-width settings panel */
+  .settings-panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  /* Smaller buttons */
+  .btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.875rem;
+    min-height: 44px; /* Maintain touch target */
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Hide text labels on small buttons */
+  .btn-text-mobile-hide {
+    display: none;
+  }
+
+  /* Simplify accordion panel */
+  .keyboard-svg {
+    max-width: 100%;
+  }
+
+  .panel-info {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .panel-info-item {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+/* Touch-specific adjustments */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets */
+  .cba-button,
+  .bass-button {
+    /* Increase padding for easier tapping */
+    r: 12; /* Increase radius */
+  }
+
+  /* Remove hover effects on touch devices */
+  .cba-button:hover .button-face,
+  .bass-button:hover .button-face {
+    transform: none;
+  }
+
+  /* Use active state instead */
+  .cba-button:active .button-face,
+  .bass-button:active .button-face {
+    transform: scale(0.95);
+  }
+}
+
+/* iPad Pro and larger tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .accordion-panel.split {
+    width: 45%;
+  }
+
+  #score-container {
+    padding-right: calc(45% + var(--spacing-xl));
+  }
+}
+
+/* Print styles */
+@media print {
+  .nav-bar,
+  .playback-bar,
+  .accordion-panel,
+  .settings-panel {
+    display: none !important;
+  }
+
+  #score-container {
+    padding: 0;
+    background: white;
+    position: static;
+  }
+
+  body {
+    background: white;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .cba-button,
+  .bass-button,
+  .btn {
+    transition: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --glass-border: rgba(212, 175, 55, 0.5);
+  }
+
+  .glass {
+    border-width: 2px;
+  }
+
+  .cba-button.active .button-face,
+  .bass-button.active .button-face {
+    stroke-width: 3;
+  }
+}

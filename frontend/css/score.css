@@ -1,0 +1,152 @@
+/**
+ * Akkordio - Score Container Styles
+ * OSMD rendering area (foundational layer)
+ */
+
+#score-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--score-bg);
+  padding: calc(80px + var(--spacing-lg)) var(--spacing-xxl) calc(80px + var(--spacing-lg)) var(--spacing-xxl);
+  overflow: auto;
+  z-index: var(--z-score);
+  transition: background var(--transition-base);
+}
+
+/* OSMD SVG styling */
+#score-container svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Empty state (before upload) */
+.score-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.score-empty-state h2 {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.score-empty-state p {
+  font-size: 1.125rem;
+  max-width: 500px;
+  margin-bottom: var(--spacing-xl);
+}
+
+/* Upload drop zone */
+.upload-zone {
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xxl);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  min-width: 400px;
+}
+
+.upload-zone:hover {
+  border-color: var(--gold-primary);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.upload-zone.drag-over {
+  border-color: var(--gold-primary);
+  background: rgba(212, 175, 55, 0.1);
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--spacing-md);
+  opacity: 0.5;
+}
+
+.upload-text {
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Processing state */
+.processing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(212, 175, 55, 0.2);
+  border-top-color: var(--gold-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.processing-text {
+  margin-top: var(--spacing-lg);
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+.processing-progress {
+  margin-top: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Cursor highlight for playback */
+.osmd-cursor-highlight {
+  fill: rgba(212, 175, 55, 0.2);
+  stroke: var(--gold-primary);
+  stroke-width: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #score-container {
+    padding: calc(70px + var(--spacing-md)) var(--spacing-md) calc(90px + var(--spacing-md)) var(--spacing-md);
+  }
+
+  .upload-zone {
+    min-width: auto;
+    width: 100%;
+    padding: var(--spacing-lg);
+  }
+}

@@ -8,6 +8,7 @@ Converts PDF music scores to MusicXML format.
 import asyncio
 import subprocess
 import shutil
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 import logging
@@ -33,10 +34,10 @@ class OMRProcessor:
         Initialize OMR processor.
 
         Args:
-            audiveris_path: Path to Audiveris executable. If None, assumes
-                          'audiveris' is in PATH.
+            audiveris_path: Path to Audiveris executable. If None, checks
+                          AUDIVERIS_PATH env var, then assumes 'audiveris' is in PATH.
         """
-        self.audiveris_path = audiveris_path or "audiveris"
+        self.audiveris_path = audiveris_path or os.getenv('AUDIVERIS_PATH', 'audiveris')
         self._check_audiveris_available()
 
     def _check_audiveris_available(self) -> None:

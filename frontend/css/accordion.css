@@ -1,0 +1,243 @@
+/**
+ * Akkordio - Accordion Panel Styles
+ * CBA keyboard visualization with button states
+ */
+
+/* Panel layout modes */
+.accordion-panel.split {
+  position: fixed;
+  right: var(--spacing-lg);
+  top: calc(80px + var(--spacing-lg));
+  bottom: calc(90px + var(--spacing-lg));
+  width: 40%;
+  max-width: 600px;
+  min-width: 350px;
+  overflow: auto;
+}
+
+.accordion-panel.floating {
+  position: absolute;
+  top: calc(80px + 40px);
+  right: 40px;
+  width: 450px;
+  max-height: calc(100vh - 240px);
+  resize: both;
+  overflow: auto;
+  min-width: 350px;
+  max-width: 600px;
+  min-height: 400px;
+}
+
+/* Keyboard container */
+.keyboard-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+/* SVG keyboard */
+.keyboard-svg {
+  width: 100%;
+  height: auto;
+  max-width: 500px;
+}
+
+/* CBA Button styles */
+.cba-button {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+/* White buttons (chromatic) */
+.cba-button.white .button-face {
+  fill: url(#whiteGradient);
+  stroke: rgba(0, 0, 0, 0.15);
+  stroke-width: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Black buttons (incidentals) */
+.cba-button.black .button-face {
+  fill: url(#blackGradient);
+  stroke: rgba(0, 0, 0, 0.3);
+  stroke-width: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Button text */
+.button-label {
+  fill: var(--text-primary);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cba-button.black .button-label {
+  fill: white;
+}
+
+/* Button states */
+.cba-button:hover .button-face {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+}
+
+.cba-button.active .button-face {
+  fill: url(#goldGradient);
+  stroke: var(--gold-primary);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 16px rgba(212, 175, 55, 0.6));
+}
+
+.cba-button.active .button-label {
+  fill: white;
+}
+
+.cba-button.suggested .button-face {
+  fill: rgba(212, 175, 55, 0.3);
+  stroke: var(--gold-primary);
+  stroke-width: 1.5;
+}
+
+.cba-button.suggested:not(.white) .button-label {
+  fill: white;
+}
+
+/* Stradella bass buttons */
+.bass-button {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.bass-button .button-face {
+  fill: var(--glass-bg);
+  stroke: var(--glass-border);
+  stroke-width: 1;
+}
+
+.bass-button.root .button-face {
+  fill: url(#whiteGradient);
+}
+
+.bass-button.counter-bass .button-face {
+  fill: rgba(212, 175, 55, 0.2);
+}
+
+.bass-button.chord .button-face {
+  fill: var(--glass-bg);
+}
+
+.bass-button:hover .button-face {
+  stroke: var(--gold-primary);
+  stroke-width: 2;
+}
+
+.bass-button.active .button-face {
+  fill: url(#goldGradient);
+  stroke: var(--gold-primary);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.6));
+}
+
+.bass-button.active .button-label {
+  fill: white;
+}
+
+/* SVG Gradients (defined in JS/HTML) */
+#whiteGradient {
+  --white-start: #ffffff;
+  --white-end: #f5f5f5;
+}
+
+#blackGradient {
+  --black-start: #3d3d3f;
+  --black-end: #2d2d2f;
+}
+
+#goldGradient {
+  --gold-start: #d4af37;
+  --gold-end: #f4d03f;
+}
+
+[data-theme="dark"] #whiteGradient {
+  --white-start: #ffffff;
+  --white-end: #f0f0f0;
+}
+
+[data-theme="dark"] #blackGradient {
+  --black-start: #2d2d2f;
+  --black-end: #0a0a0a;
+}
+
+/* Panel info */
+.panel-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: rgba(212, 175, 55, 0.05);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.panel-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel-info-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.panel-info-value {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+/* Responsive */
+@media (max-width: 1199px) {
+  .accordion-panel.split {
+    position: fixed;
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    top: auto;
+    bottom: calc(90px + var(--spacing-lg));
+    width: auto;
+    max-width: none;
+    height: 50vh;
+  }
+
+  .accordion-panel.floating {
+    position: fixed;
+    top: auto;
+    bottom: calc(90px + var(--spacing-lg));
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - var(--spacing-xl));
+    max-width: 800px;
+    resize: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .accordion-panel.split,
+  .accordion-panel.floating {
+    width: calc(100% - var(--spacing-lg));
+    max-height: 50vh;
+    padding: var(--spacing-md);
+  }
+
+  .panel-header {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+  }
+}

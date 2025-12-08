@@ -1,378 +1,396 @@
 /**
- * Akkordio Main Application Controller
- *
- * Handles application initialization, state management, and coordination
- * between upload, processing, and visualization modules.
+ * Akkordio - Main Application Controller
+ * Handles UI interactions, file upload, and application state
  */
 
-// Application Configuration
-const CONFIG = {
-    apiBaseUrl: 'http://localhost:8000',
-    maxFileSize: 10 * 1024 * 1024, // 10MB
-    pollInterval: 1000, // 1 second
-    supportedFormats: ['.pdf']
-};
+import * as API from './api.js';
+import { renderTrebleKeyboard, renderBassKeyboard, addButtonClickHandlers } from './accordion_svg.js';
 
-// Application State
+// Application state
 const state = {
     currentJobId: null,
-    currentFile: null,
-    selectedTrebleLayout: 'c_system_5row_standard',
-    selectedBassLayout: 'stradella_120_standard',
-    isProcessing: false,
-    processingData: null
+    currentHand: 'right', // 'right', 'left', or 'both'
+    trebleLayout: null,
+    bassLayout: null,
+    results: null,
+    isProcessing: false
 };
 
-// DOM Elements
+// DOM elements
 const elements = {
-    uploadArea: document.getElementById('uploadArea'),
+    // Navigation
+    uploadBtn: document.getElementById('uploadBtn'),
+    loadPreviousBtn: document.getElementById('loadPreviousBtn'),
+    settingsBtn: document.getElementById('settingsBtn'),
+    settingsPanel: document.getElementById('settingsPanel'),
+
+    // Upload
+    uploadZone: document.getElementById('uploadZone'),
     fileInput: document.getElementById('fileInput'),
-    fileInfo: document.getElementById('fileInfo'),
-    fileName: document.getElementById('fileName'),
-    fileSize: document.getElementById('fileSize'),
-    trebleLayout: document.getElementById('trebleLayout'),
-    bassLayout: document.getElementById('bassLayout'),
-    processBtn: document.getElementById('processBtn'),
-    progressSection: document.getElementById('progressSection'),
-    progressFill: document.getElementById('progressFill'),
-    progressText: document.getElementById('progressText'),
-    visualizationSection: document.getElementById('visualizationSection'),
+    emptyState: document.getElementById('emptyState'),
+
+    // Processing
+    processingOverlay: document.getElementById('processingOverlay'),
+    processingText: document.getElementById('processingText'),
+    processingProgress: document.getElementById('processingProgress'),
+
+    // Accordion panel
+    accordionPanel: document.getElementById('accordionPanel'),
+    toggleRight: document.getElementById('toggleRight'),
+    toggleLeft: document.getElementById('toggleLeft'),
+    toggleBoth: document.getElementById('toggleBoth'),
+    trebleKeyboard: document.getElementById('trebleKeyboard'),
+    bassKeyboard: document.getElementById('bassKeyboard'),
+    currentLayout: document.getElementById('currentLayout'),
+    layoutRange: document.getElementById('layoutRange'),
+
+    // Playback
+    playbackBar: document.getElementById('playbackBar'),
     playBtn: document.getElementById('playBtn'),
-    pauseBtn: document.getElementById('pauseBtn'),
-    stopBtn: document.getElementById('stopBtn'),
-    tempoSlider: document.getElementById('tempoSlider'),
-    tempoValue: document.getElementById('tempoValue'),
-    currentMeasure: document.getElementById('currentMeasure'),
-    keySignature: document.getElementById('keySignature'),
-    timeSignature: document.getElementById('timeSignature'),
-    errorMessage: document.getElementById('errorMessage'),
+    playIcon: document.getElementById('playIcon'),
+    pauseIcon: document.getElementById('pauseIcon'),
+    progressFill: document.getElementById('progressFill'),
+    currentTime: document.getElementById('currentTime'),
+    tempo: document.getElementById('tempo'),
+
+    // Settings
+    trebleLayoutSelect: document.getElementById('trebleLayoutSelect'),
+    bassLayoutSelect: document.getElementById('bassLayoutSelect'),
+
+    // Error
+    errorToast: document.getElementById('errorToast'),
     errorText: document.getElementById('errorText'),
     closeError: document.getElementById('closeError')
 };
 
 /**
- * Initialize the application
+ * Initialize application
  */
 function init() {
     setupEventListeners();
-    checkBackendConnection();
+    checkBackendHealth();
+    loadSavedJobId();
 }
 
 /**
  * Set up all event listeners
  */
 function setupEventListeners() {
-    // File upload events
-    elements.uploadArea.addEventListener('click', () => elements.fileInput.click());
-    elements.uploadArea.addEventListener('dragover', handleDragOver);
-    elements.uploadArea.addEventListener('dragleave', handleDragLeave);
-    elements.uploadArea.addEventListener('drop', handleDrop);
-    elements.fileInput.addEventListener('change', handleFileSelect);
-
-    // Layout selection events
-    elements.trebleLayout.addEventListener('change', (e) => {
-        state.selectedTrebleLayout = e.target.value;
-    });
-    elements.bassLayout.addEventListener('change', (e) => {
-        state.selectedBassLayout = e.target.value;
+    // Upload button
+    elements.uploadBtn?.addEventListener('click', () => {
+        elements.fileInput?.click();
     });
 
-    // Process button
-    elements.processBtn.addEventListener('click', handleProcess);
-
-    // Playback controls
-    elements.playBtn.addEventListener('click', handlePlay);
-    elements.pauseBtn.addEventListener('click', handlePause);
-    elements.stopBtn.addEventListener('click', handleStop);
-
-    // Tempo control
-    elements.tempoSlider.addEventListener('input', (e) => {
-        elements.tempoValue.textContent = e.target.value;
+    // Upload zone (drag & drop)
+    elements.uploadZone?.addEventListener('click', () => {
+        elements.fileInput?.click();
     });
 
-    // Error message close
-    elements.closeError.addEventListener('click', hideError);
+    elements.uploadZone?.addEventListener('dragover', handleDragOver);
+    elements.uploadZone?.addEventListener('dragleave', handleDragLeave);
+    elements.uploadZone?.addEventListener('drop', handleDrop);
+
+    // File input
+    elements.fileInput?.addEventListener('change', handleFileSelect);
+
+    // Settings panel toggle
+    elements.settingsBtn?.addEventListener('click', toggleSettingsPanel);
+
+    // Click outside to close settings
+    document.addEventListener('click', (e) => {
+        if (!elements.settingsPanel?.contains(e.target) &&
+            !elements.settingsBtn?.contains(e.target) &&
+            elements.settingsPanel?.classList.contains('open')) {
+            elements.settingsPanel.classList.remove('open');
+        }
+    });
+
+    // Hand toggles
+    elements.toggleRight?.addEventListener('click', () => setHand('right'));
+    elements.toggleLeft?.addEventListener('click', () => setHand('left'));
+    elements.toggleBoth?.addEventListener('click', () => setHand('both'));
+
+    // Playback
+    elements.playBtn?.addEventListener('click', togglePlayback);
+
+    // Error close
+    elements.closeError?.addEventListener('click', hideError);
+
+    // Layout selection
+    elements.trebleLayoutSelect?.addEventListener('change', handleLayoutChange);
+    elements.bassLayoutSelect?.addEventListener('change', handleLayoutChange);
 }
 
 /**
- * Check backend API connection
+ * Check backend health
  */
-async function checkBackendConnection() {
+async function checkBackendHealth() {
     try {
-        const response = await fetch(`${CONFIG.apiBaseUrl}/health`);
-        if (!response.ok) {
-            throw new Error('Backend not responding');
-        }
+        const health = await API.healthCheck();
+        console.log('Backend health:', health);
     } catch (error) {
-        showError('Cannot connect to backend server. Please ensure it is running on port 8000.');
+        console.warn('Backend not available:', error.message);
+        showError('Backend server not available. Please start the server.');
     }
 }
 
 /**
- * Handle drag over event
+ * Load saved job ID from localStorage
+ */
+function loadSavedJobId() {
+    const savedJobId = localStorage.getItem('lastJobId');
+    if (savedJobId) {
+        console.log('Found saved job:', savedJobId);
+        // Could auto-load results here
+    }
+}
+
+/**
+ * Handle drag over
  */
 function handleDragOver(e) {
     e.preventDefault();
     e.stopPropagation();
-    elements.uploadArea.classList.add('drag-over');
+    elements.uploadZone?.classList.add('drag-over');
 }
 
 /**
- * Handle drag leave event
+ * Handle drag leave
  */
 function handleDragLeave(e) {
     e.preventDefault();
     e.stopPropagation();
-    elements.uploadArea.classList.remove('drag-over');
+    elements.uploadZone?.classList.remove('drag-over');
 }
 
 /**
- * Handle file drop event
+ * Handle file drop
  */
 function handleDrop(e) {
     e.preventDefault();
     e.stopPropagation();
-    elements.uploadArea.classList.remove('drag-over');
+    elements.uploadZone?.classList.remove('drag-over');
 
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
         handleFile(files[0]);
     }
 }
 
 /**
- * Handle file selection from input
+ * Handle file select from input
  */
 function handleFileSelect(e) {
-    const files = e.target.files;
-    if (files.length > 0) {
+    const files = e.target?.files;
+    if (files && files.length > 0) {
         handleFile(files[0]);
     }
 }
 
 /**
- * Process selected file
+ * Handle file upload and processing
  */
-function handleFile(file) {
-    // Validate file type
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-        showError('Please select a PDF file.');
+async function handleFile(file) {
+    // Validate file
+    if (!file.name.endsWith('.pdf')) {
+        showError('Please upload a PDF file');
         return;
     }
 
-    // Validate file size
-    if (file.size > CONFIG.maxFileSize) {
-        showError(`File size exceeds 10MB limit. Selected file: ${formatFileSize(file.size)}`);
+    if (file.size > 10 * 1024 * 1024) {
+        showError('File size exceeds 10MB limit');
         return;
     }
-
-    // Update state
-    state.currentFile = file;
-
-    // Update UI
-    elements.fileName.textContent = file.name;
-    elements.fileSize.textContent = formatFileSize(file.size);
-    elements.fileInfo.style.display = 'block';
-    elements.processBtn.disabled = false;
-}
-
-/**
- * Handle process button click
- */
-async function handleProcess() {
-    if (!state.currentFile) {
-        showError('Please select a file first.');
-        return;
-    }
-
-    if (state.isProcessing) {
-        return;
-    }
-
-    state.isProcessing = true;
-    elements.processBtn.disabled = true;
 
     try {
+        state.isProcessing = true;
+
+        // Show processing overlay
+        elements.emptyState?.classList.add('hidden');
+        elements.processingOverlay?.classList.remove('hidden');
+        updateProcessingStatus('Uploading file...', 0);
+
         // Upload file
-        showProgress(0, 'Uploading file...');
-        const jobId = await uploadFile(state.currentFile);
-        state.currentJobId = jobId;
+        const uploadResult = await API.uploadPDF(file);
+        console.log('Upload successful:', uploadResult);
+        state.currentJobId = uploadResult.job_id;
+
+        // Save job ID
+        localStorage.setItem('lastJobId', uploadResult.job_id);
+
+        // Get selected layouts
+        const trebleLayout = elements.trebleLayoutSelect?.value || 'c_system_5row';
+        const bassLayout = elements.bassLayoutSelect?.value || 'stradella_120';
 
         // Start processing
-        showProgress(10, 'Starting processing...');
-        await startProcessing(jobId);
+        updateProcessingStatus('Starting OMR processing...', 10);
+        await API.startProcessing(uploadResult.job_id, {
+            treble_layout: { preset: trebleLayout },
+            bass_layout: { preset: bassLayout }
+        });
 
-        // Poll for status
-        await pollProcessingStatus(jobId);
+        // Poll for completion
+        await API.pollStatus(uploadResult.job_id, (status) => {
+            updateProcessingStatus(status.message, status.progress);
+        });
+
+        // Get results
+        updateProcessingStatus('Loading results...', 95);
+        const results = await API.getResults(uploadResult.job_id);
+        console.log('Results:', results);
+
+        // Store results
+        state.results = results;
+        state.trebleLayout = results.treble_layout;
+        state.bassLayout = results.bass_layout;
+
+        // Hide processing, show results
+        elements.processingOverlay?.classList.add('hidden');
+        showResults(results);
 
     } catch (error) {
-        showError(error.message || 'An error occurred during processing.');
-        resetProcessing();
+        console.error('Processing error:', error);
+        showError(error.message);
+        elements.processingOverlay?.classList.add('hidden');
+        elements.emptyState?.classList.remove('hidden');
+        state.isProcessing = false;
     }
 }
 
 /**
- * Upload file to backend
+ * Update processing status
  */
-async function uploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch(`${CONFIG.apiBaseUrl}/upload`, {
-        method: 'POST',
-        body: formData
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Upload failed');
+function updateProcessingStatus(message, progress) {
+    if (elements.processingText) {
+        elements.processingText.textContent = message;
     }
-
-    const data = await response.json();
-    return data.job_id;
+    if (elements.processingProgress) {
+        elements.processingProgress.textContent = `${Math.round(progress)}%`;
+    }
 }
 
 /**
- * Start processing
+ * Show results
  */
-async function startProcessing(jobId) {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/process/${jobId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            treble_layout: state.selectedTrebleLayout,
-            bass_layout: state.selectedBassLayout,
-            options: {}
-        })
-    });
+function showResults(results) {
+    // Show accordion panel and playback bar
+    elements.accordionPanel?.classList.remove('hidden');
+    elements.playbackBar?.classList.remove('hidden');
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Processing failed to start');
+    // Render keyboards
+    console.log('Rendering keyboards...', results);
+
+    // Render treble keyboard
+    if (results.treble_layout && results.treble_events) {
+        renderTrebleKeyboard(
+            elements.trebleKeyboard,
+            results.treble_layout,
+            results.treble_events
+        );
+
+        // Add click handlers for interactive testing
+        addButtonClickHandlers(elements.trebleKeyboard, (button) => {
+            console.log('Treble button clicked:', button);
+        });
     }
 
-    return await response.json();
-}
+    // Render bass keyboard
+    if (results.bass_layout && results.bass_events) {
+        renderBassKeyboard(
+            elements.bassKeyboard,
+            results.bass_layout,
+            results.bass_events
+        );
 
-/**
- * Poll processing status
- */
-async function pollProcessingStatus(jobId) {
-    return new Promise((resolve, reject) => {
-        const interval = setInterval(async () => {
-            try {
-                const response = await fetch(`${CONFIG.apiBaseUrl}/status/${jobId}`);
-
-                if (!response.ok) {
-                    clearInterval(interval);
-                    reject(new Error('Failed to check status'));
-                    return;
-                }
-
-                const status = await response.json();
-                showProgress(status.progress, status.message);
-
-                if (status.status === 'completed') {
-                    clearInterval(interval);
-                    await loadResults(jobId);
-                    resolve();
-                } else if (status.status === 'failed') {
-                    clearInterval(interval);
-                    reject(new Error(status.error || 'Processing failed'));
-                }
-            } catch (error) {
-                clearInterval(interval);
-                reject(error);
-            }
-        }, CONFIG.pollInterval);
-    });
-}
-
-/**
- * Load processing results
- */
-async function loadResults(jobId) {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/results/${jobId}`);
-
-    if (!response.ok) {
-        throw new Error('Failed to load results');
+        addButtonClickHandlers(elements.bassKeyboard, (button) => {
+            console.log('Bass button clicked:', button);
+        });
     }
 
-    const data = await response.json();
-    state.processingData = data;
+    // Update layout info
+    if (elements.currentLayout && results.treble_layout) {
+        elements.currentLayout.textContent = results.treble_layout.system.toUpperCase();
+    }
 
-    // Hide progress, show visualization
-    elements.progressSection.style.display = 'none';
-    elements.visualizationSection.style.display = 'block';
-
-    // Update metadata display
-    if (data.metadata) {
-        if (data.metadata.key_signature) {
-            elements.keySignature.textContent = data.metadata.key_signature;
-        }
-        if (data.metadata.time_signature) {
-            elements.timeSignature.textContent = data.metadata.time_signature;
+    if (elements.layoutRange && results.treble_layout) {
+        const buttons = results.treble_layout.buttons;
+        if (buttons && buttons.length > 0) {
+            const firstNote = buttons[0].note;
+            const lastNote = buttons[buttons.length - 1].note;
+            elements.layoutRange.textContent = `${firstNote}-${lastNote}`;
         }
     }
 
-    // TODO: Render keyboards and prepare playback
-    // This will be implemented in subsequent modules
-}
-
-/**
- * Show progress
- */
-function showProgress(percentage, message) {
-    elements.progressSection.style.display = 'block';
-    elements.progressFill.style.width = `${percentage}%`;
-    elements.progressText.textContent = message;
-}
-
-/**
- * Reset processing state
- */
-function resetProcessing() {
     state.isProcessing = false;
-    elements.processBtn.disabled = false;
-    elements.progressSection.style.display = 'none';
 }
 
 /**
- * Handle play button
+ * Toggle settings panel
  */
-function handlePlay() {
-    elements.playBtn.style.display = 'none';
-    elements.pauseBtn.style.display = 'inline-flex';
-    // TODO: Implement playback
+function toggleSettingsPanel(e) {
+    e.stopPropagation();
+    elements.settingsPanel?.classList.toggle('open');
 }
 
 /**
- * Handle pause button
+ * Set active hand
  */
-function handlePause() {
-    elements.pauseBtn.style.display = 'none';
-    elements.playBtn.style.display = 'inline-flex';
-    // TODO: Implement pause
+function setHand(hand) {
+    state.currentHand = hand;
+
+    // Update button states
+    elements.toggleRight?.classList.toggle('active', hand === 'right' || hand === 'both');
+    elements.toggleLeft?.classList.toggle('active', hand === 'left' || hand === 'both');
+    elements.toggleBoth?.classList.toggle('active', hand === 'both');
+
+    // Show/hide keyboards
+    if (hand === 'right') {
+        elements.trebleKeyboard.style.display = 'block';
+        elements.bassKeyboard.style.display = 'none';
+    } else if (hand === 'left') {
+        elements.trebleKeyboard.style.display = 'none';
+        elements.bassKeyboard.style.display = 'block';
+    } else {
+        elements.trebleKeyboard.style.display = 'block';
+        elements.bassKeyboard.style.display = 'block';
+    }
 }
 
 /**
- * Handle stop button
+ * Handle layout change
  */
-function handleStop() {
-    elements.pauseBtn.style.display = 'none';
-    elements.playBtn.style.display = 'inline-flex';
-    elements.currentMeasure.textContent = '1';
-    // TODO: Implement stop
+async function handleLayoutChange() {
+    // If we have current results, could re-fetch with new layouts
+    console.log('Layout changed');
+}
+
+/**
+ * Toggle playback
+ */
+function togglePlayback() {
+    const isPlaying = elements.playIcon?.style.display === 'none';
+
+    if (isPlaying) {
+        // Pause
+        elements.playIcon.style.display = 'block';
+        elements.pauseIcon.style.display = 'none';
+        console.log('Pausing playback');
+    } else {
+        // Play
+        elements.playIcon.style.display = 'none';
+        elements.pauseIcon.style.display = 'block';
+        console.log('Starting playback');
+    }
 }
 
 /**
  * Show error message
  */
 function showError(message) {
-    elements.errorText.textContent = message;
-    elements.errorMessage.style.display = 'flex';
+    if (elements.errorText) {
+        elements.errorText.textContent = message;
+    }
+    elements.errorToast?.classList.remove('hidden');
 
     // Auto-hide after 5 seconds
     setTimeout(hideError, 5000);
@@ -382,25 +400,15 @@ function showError(message) {
  * Hide error message
  */
 function hideError() {
-    elements.errorMessage.style.display = 'none';
+    elements.errorToast?.classList.add('hidden');
 }
 
-/**
- * Format file size for display
- */
-function formatFileSize(bytes) {
-    if (bytes < 1024) {
-        return `${bytes} B`;
-    } else if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(1)} KB`;
-    } else {
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-}
-
-// Initialize application when DOM is ready
+// Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
 }
+
+// Export for use in other modules
+export { state, elements };
