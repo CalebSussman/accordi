@@ -54,7 +54,7 @@ app.add_middleware(
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
-        "https://akkordio.github.io",  # GitHub Pages
+        "https://calebsussman.github.io",  # GitHub Pages
     ],
     allow_credentials=True,
     allow_methods=["*"],
