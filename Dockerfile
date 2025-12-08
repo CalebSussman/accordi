@@ -15,9 +15,9 @@ ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
 # Download and install Audiveris
 WORKDIR /tmp
-RUN wget https://github.com/Audiveris/audiveris/releases/download/5.6.0/Audiveris-5.6.0-linux-x86_64.deb && \
-    dpkg -i Audiveris-5.6.0-linux-x86_64.deb || apt-get install -f -y && \
-    rm Audiveris-5.6.0-linux-x86_64.deb
+RUN wget https://github.com/Audiveris/audiveris/releases/download/5.8.1/Audiveris-5.8.1-ubuntu22.04-x86_64.deb && \
+    dpkg -i Audiveris-5.8.1-ubuntu22.04-x86_64.deb || apt-get install -f -y && \
+    rm Audiveris-5.8.1-ubuntu22.04-x86_64.deb
 
 # Set Audiveris path
 ENV AUDIVERIS_PATH=/opt/Audiveris/bin/Audiveris
