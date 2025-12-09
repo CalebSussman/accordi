@@ -19,8 +19,12 @@ RUN wget https://github.com/Audiveris/audiveris/releases/download/5.8.1/Audiveri
     dpkg -i Audiveris-5.8.1-ubuntu22.04-x86_64.deb || apt-get install -f -y && \
     rm Audiveris-5.8.1-ubuntu22.04-x86_64.deb
 
-# Set Audiveris path
-ENV AUDIVERIS_PATH=/opt/Audiveris/bin/Audiveris
+# Add Audiveris to PATH and set environment variable
+ENV PATH="/opt/Audiveris/bin:${PATH}"
+ENV AUDIVERIS_PATH=Audiveris
+
+# Verify Audiveris installation
+RUN which Audiveris || (find /opt -name "Audiveris" -o -name "audiveris" 2>/dev/null && exit 1)
 
 # Set working directory
 WORKDIR /app
