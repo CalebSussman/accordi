@@ -6,6 +6,9 @@
 import * as API from './api.js';
 import { renderTrebleKeyboard, renderBassKeyboard, addButtonClickHandlers } from './accordion_svg.js';
 
+// OSMD is loaded from CDN in index.html
+const { OpenSheetMusicDisplay } = window.opensheetmusicdisplay;
+
 // Application state
 const state = {
     currentJobId: null,
@@ -244,6 +247,10 @@ async function handleFile(file) {
         state.trebleLayout = results.treble_layout;
         state.bassLayout = results.bass_layout;
 
+        // Render score with OSMD
+        updateProcessingStatus('Rendering score...', 98);
+        await renderScore(uploadResult.job_id);
+
         // Hide processing, show results
         elements.processingOverlay?.classList.add('hidden');
         showResults(results);
@@ -266,6 +273,52 @@ function updateProcessingStatus(message, progress) {
     }
     if (elements.processingProgress) {
         elements.processingProgress.textContent = `${Math.round(progress)}%`;
+    }
+}
+
+/**
+ * Render MusicXML score with OpenSheetMusicDisplay
+ */
+async function renderScore(jobId) {
+    try {
+        const scoreContainer = document.getElementById('scoreContainer');
+        if (!scoreContainer) {
+            console.error('Score container not found');
+            return;
+        }
+
+        // Clear existing content
+        scoreContainer.innerHTML = '';
+
+        // Fetch MusicXML
+        const musicXmlUrl = API.getMusicXMLUrl(jobId);
+        const response = await fetch(musicXmlUrl);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch MusicXML: ${response.statusText}`);
+        }
+
+        const musicXml = await response.text();
+
+        // Initialize OSMD
+        if (!OpenSheetMusicDisplay) {
+            throw new Error('OpenSheetMusicDisplay not loaded');
+        }
+
+        const osmd = new OpenSheetMusicDisplay(scoreContainer, {
+            autoResize: true,
+            backend: 'svg',
+            drawTitle: true
+        });
+
+        // Load and render
+        await osmd.load(musicXml);
+        osmd.render();
+
+        console.log('Score rendered successfully');
+    } catch (error) {
+        console.error('Error rendering score:', error);
+        showMessage(`Failed to display score: ${error.message}`, 'error');
     }
 }
 
