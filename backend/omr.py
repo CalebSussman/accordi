@@ -47,6 +47,19 @@ class OMRProcessor:
         Raises:
             AudiverisError: If Audiveris is not found
         """
+        # If it's an absolute path, check if file exists
+        if os.path.isabs(self.audiveris_path):
+            if os.path.isfile(self.audiveris_path) and os.access(self.audiveris_path, os.X_OK):
+                logger.info(f"Audiveris found at: {self.audiveris_path}")
+                return
+            else:
+                logger.error(f"Audiveris not found at absolute path: {self.audiveris_path}")
+                raise AudiverisError(
+                    f"Audiveris not found at {self.audiveris_path}. "
+                    f"Please ensure the path is correct and the file is executable."
+                )
+
+        # Otherwise check in PATH
         audiveris_executable = shutil.which(self.audiveris_path)
         if not audiveris_executable:
             logger.error("Audiveris not found in PATH")
