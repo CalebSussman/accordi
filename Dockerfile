@@ -29,8 +29,11 @@ RUN echo "=== Finding Audiveris installation ===" && \
 # The .deb package installs to /opt/Audiveris/bin
 ENV PATH="/opt/Audiveris/bin:${PATH}"
 
-# Don't set AUDIVERIS_PATH - let it default to searching PATH
-# This avoids conflicts with Render environment variables
+# Verify Audiveris is accessible
+RUN ls -la /opt/Audiveris/bin/ || echo "Audiveris bin directory not found"
+
+# Set AUDIVERIS_PATH to the exact binary location
+ENV AUDIVERIS_PATH="/opt/Audiveris/bin/Audiveris"
 
 # Set working directory
 WORKDIR /app
