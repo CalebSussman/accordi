@@ -31,6 +31,8 @@ const elements = {
     uploadZone: document.getElementById('uploadZone'),
     fileInput: document.getElementById('fileInput'),
     emptyState: document.getElementById('emptyState'),
+    testMusicXMLBtn: document.getElementById('testMusicXMLBtn'),
+    musicxmlInput: document.getElementById('musicxmlInput'),
 
     // Processing
     processingOverlay: document.getElementById('processingOverlay'),
@@ -95,6 +97,12 @@ function setupEventListeners() {
 
     // File input
     elements.fileInput?.addEventListener('change', handleFileSelect);
+
+    // MusicXML test upload
+    elements.testMusicXMLBtn?.addEventListener('click', () => {
+        elements.musicxmlInput?.click();
+    });
+    elements.musicxmlInput?.addEventListener('change', handleMusicXMLSelect);
 
     // Settings panel toggle
     elements.settingsBtn?.addEventListener('click', toggleSettingsPanel);
@@ -191,6 +199,50 @@ function handleFileSelect(e) {
 }
 
 /**
+ * Handle MusicXML file upload for direct testing
+ */
+async function handleMusicXMLSelect(e) {
+    const files = e.target?.files;
+    if (files && files.length > 0) {
+        const file = files[0];
+
+        // Validate file extension
+        const validExtensions = ['.musicxml', '.mxl', '.xml'];
+        const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+
+        if (!hasValidExtension) {
+            showError('Please upload a .musicxml, .mxl, or .xml file');
+            return;
+        }
+
+        try {
+            // Hide empty state, show processing
+            elements.emptyState?.classList.add('hidden');
+            elements.processingOverlay?.classList.remove('hidden');
+            updateProcessingStatus('Loading MusicXML file...', 50);
+
+            // Read file as text
+            const fileText = await file.text();
+
+            updateProcessingStatus('Rendering score...', 75);
+
+            // Render directly with OSMD
+            await renderScoreFromString(fileText);
+
+            // Hide processing overlay
+            elements.processingOverlay?.classList.add('hidden');
+
+            console.log('MusicXML rendered successfully');
+        } catch (error) {
+            console.error('Error loading MusicXML:', error);
+            showError(`Failed to load MusicXML: ${error.message}`);
+            elements.processingOverlay?.classList.add('hidden');
+            elements.emptyState?.classList.remove('hidden');
+        }
+    }
+}
+
+/**
  * Handle file upload and processing
  */
 async function handleFile(file) {
@@ -277,7 +329,44 @@ function updateProcessingStatus(message, progress) {
 }
 
 /**
- * Render MusicXML score with OpenSheetMusicDisplay
+ * Render MusicXML string directly with OpenSheetMusicDisplay
+ * @param {string} musicXmlString - MusicXML content as string
+ */
+async function renderScoreFromString(musicXmlString) {
+    try {
+        const osmdContainer = document.getElementById('osmd-container');
+        if (!osmdContainer) {
+            console.error('OSMD container not found');
+            return;
+        }
+
+        // Clear existing content
+        osmdContainer.innerHTML = '';
+
+        // Initialize OSMD
+        if (!OpenSheetMusicDisplay) {
+            throw new Error('OpenSheetMusicDisplay not loaded');
+        }
+
+        const osmd = new OpenSheetMusicDisplay(osmdContainer, {
+            autoResize: true,
+            backend: 'svg',
+            drawTitle: true
+        });
+
+        // Load and render from string
+        await osmd.load(musicXmlString);
+        osmd.render();
+
+        console.log('Score rendered successfully from string');
+    } catch (error) {
+        console.error('Error rendering score:', error);
+        throw error;
+    }
+}
+
+/**
+ * Render MusicXML score with OpenSheetMusicDisplay (from backend)
  */
 async function renderScore(jobId) {
     try {
@@ -300,27 +389,16 @@ async function renderScore(jobId) {
 
         const musicXml = await response.text();
 
-        // Initialize OSMD
-        if (!OpenSheetMusicDisplay) {
-            throw new Error('OpenSheetMusicDisplay not loaded');
-        }
+        // Use the common rendering function
+        await renderScoreFromString(musicXml);
 
-        const osmd = new OpenSheetMusicDisplay(osmdContainer, {
-            autoResize: true,
-            backend: 'svg',
-            drawTitle: true
-        });
-
-        // Load and render
-        await osmd.load(musicXml);
-        osmd.render();
-
-        console.log('Score rendered successfully');
+        console.log('Score rendered successfully from backend');
     } catch (error) {
         console.error('Error rendering score:', error);
         showError(`Failed to display score: ${error.message}`);
     }
 }
+
 
 /**
  * Show results

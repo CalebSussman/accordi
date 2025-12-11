@@ -101,6 +101,22 @@
                 <div class="upload-hint">Maximum file size: 10MB</div>
                 <input type="file" id="fileInput" accept=".pdf" hidden>
             </div>
+
+            <!-- Divider -->
+            <div style="margin: var(--spacing-lg) 0; text-align: center; color: var(--text-secondary); font-size: 0.875rem;">
+                — or —
+            </div>
+
+            <!-- MusicXML Test Upload -->
+            <div style="text-align: center;">
+                <button id="testMusicXMLBtn" class="btn btn-secondary" style="margin-bottom: var(--spacing-xs);">
+                    Test with MusicXML/MXL
+                </button>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                    Upload .musicxml or .mxl file directly to test score rendering
+                </div>
+                <input type="file" id="musicxmlInput" accept=".musicxml,.mxl,.xml" hidden>
+            </div>
         </div>
 
         <!-- Processing overlay -->
