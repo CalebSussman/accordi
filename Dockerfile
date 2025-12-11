@@ -3,11 +3,20 @@
 
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies including X11 libraries required by Audiveris
 RUN apt-get update && apt-get install -y \
     openjdk-21-jre-headless \
     wget \
     curl \
+    libx11-6 \
+    libxau6 \
+    libxcb1 \
+    libxdmcp6 \
+    libxext6 \
+    libxi6 \
+    libxrender1 \
+    libxtst6 \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Set JAVA_HOME
