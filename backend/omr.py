@@ -35,9 +35,9 @@ class OMRProcessor:
 
         Args:
             audiveris_path: Path to Audiveris executable. If None, checks
-                          AUDIVERIS_PATH env var, then assumes 'audiveris' is in PATH.
+                          AUDIVERIS_PATH env var, then assumes 'Audiveris' is in PATH.
         """
-        self.audiveris_path = audiveris_path or os.getenv('AUDIVERIS_PATH', 'audiveris')
+        self.audiveris_path = audiveris_path or os.getenv('AUDIVERIS_PATH', 'Audiveris')
         self._check_audiveris_available()
 
     def _check_audiveris_available(self) -> None:
