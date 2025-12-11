@@ -281,14 +281,14 @@ function updateProcessingStatus(message, progress) {
  */
 async function renderScore(jobId) {
     try {
-        const scoreContainer = document.getElementById('scoreContainer');
-        if (!scoreContainer) {
-            console.error('Score container not found');
+        const osmdContainer = document.getElementById('osmd-container');
+        if (!osmdContainer) {
+            console.error('OSMD container not found');
             return;
         }
 
         // Clear existing content
-        scoreContainer.innerHTML = '';
+        osmdContainer.innerHTML = '';
 
         // Fetch MusicXML
         const musicXmlUrl = API.getMusicXMLUrl(jobId);
@@ -305,7 +305,7 @@ async function renderScore(jobId) {
             throw new Error('OpenSheetMusicDisplay not loaded');
         }
 
-        const osmd = new OpenSheetMusicDisplay(scoreContainer, {
+        const osmd = new OpenSheetMusicDisplay(osmdContainer, {
             autoResize: true,
             backend: 'svg',
             drawTitle: true
@@ -318,7 +318,7 @@ async function renderScore(jobId) {
         console.log('Score rendered successfully');
     } catch (error) {
         console.error('Error rendering score:', error);
-        showMessage(`Failed to display score: ${error.message}`, 'error');
+        showError(`Failed to display score: ${error.message}`);
     }
 }
 
