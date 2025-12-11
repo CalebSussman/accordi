@@ -212,7 +212,7 @@ Refs: #issue-number (if applicable)
    - Include API keys in code
    - Mix tabs and spaces
    - Use inline styles except for dynamic values
-   - Create functions over 50 lines without refactoring
+   - Create functions over 50 lines without refactoring unless unavoidable (must justify in session log)
 
 2. **ALWAYS:**
    - Validate user input
