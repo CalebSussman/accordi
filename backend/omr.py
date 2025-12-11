@@ -47,9 +47,31 @@ class OMRProcessor:
         Raises:
             AudiverisError: If Audiveris is not found
         """
+        # DIAGNOSTIC: Log environment and check what exists
+        logger.info(f"=== AUDIVERIS DIAGNOSTIC ===")
+        logger.info(f"Checking for Audiveris at: {self.audiveris_path}")
+        logger.info(f"AUDIVERIS_PATH env var: {os.getenv('AUDIVERIS_PATH', 'NOT SET')}")
+        logger.info(f"PATH env var: {os.getenv('PATH', 'NOT SET')}")
+
+        # Check if /opt/Audiveris/bin exists and list contents
+        opt_dir = Path("/opt/Audiveris/bin")
+        if opt_dir.exists():
+            logger.info(f"Directory {opt_dir} exists. Contents:")
+            try:
+                for item in opt_dir.iterdir():
+                    logger.info(f"  - {item.name} (executable: {os.access(item, os.X_OK)})")
+            except Exception as e:
+                logger.error(f"Error listing directory: {e}")
+        else:
+            logger.error(f"Directory {opt_dir} does NOT exist")
+
         # If it's an absolute path, check if file exists
         if os.path.isabs(self.audiveris_path):
-            if os.path.isfile(self.audiveris_path) and os.access(self.audiveris_path, os.X_OK):
+            file_exists = os.path.isfile(self.audiveris_path)
+            is_executable = os.access(self.audiveris_path, os.X_OK) if file_exists else False
+            logger.info(f"File exists: {file_exists}, Is executable: {is_executable}")
+
+            if file_exists and is_executable:
                 logger.info(f"Audiveris found at: {self.audiveris_path}")
                 return
             else:

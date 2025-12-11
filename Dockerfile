@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
 # Download and install Audiveris
+# CACHE BUST: 2025-12-10-v3 - Force rebuild to verify installation
 WORKDIR /tmp
 RUN wget https://github.com/Audiveris/audiveris/releases/download/5.8.1/Audiveris-5.8.1-ubuntu22.04-x86_64.deb && \
     dpkg -i Audiveris-5.8.1-ubuntu22.04-x86_64.deb || apt-get install -f -y && \
