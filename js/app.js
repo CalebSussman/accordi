@@ -68,6 +68,11 @@ const elements = {
     closeError: document.getElementById('closeError')
 };
 
+// Debug: Log MusicXML elements on load
+console.log('=== MusicXML Upload Debug ===');
+console.log('testMusicXMLBtn:', elements.testMusicXMLBtn);
+console.log('musicxmlInput:', elements.musicxmlInput);
+
 /**
  * Initialize application
  */
@@ -100,7 +105,13 @@ function setupEventListeners() {
 
     // MusicXML test upload
     elements.testMusicXMLBtn?.addEventListener('click', () => {
-        elements.musicxmlInput?.click();
+        console.log('MusicXML button clicked');
+        console.log('musicxmlInput element:', elements.musicxmlInput);
+        if (elements.musicxmlInput) {
+            elements.musicxmlInput.click();
+        } else {
+            console.error('musicxmlInput element not found!');
+        }
     });
     elements.musicxmlInput?.addEventListener('change', handleMusicXMLSelect);
 
