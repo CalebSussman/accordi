@@ -29,11 +29,17 @@ RUN echo "=== Finding Audiveris installation ===" && \
 # The .deb package installs to /opt/Audiveris/bin
 ENV PATH="/opt/Audiveris/bin:${PATH}"
 
-# Verify Audiveris is accessible
-RUN ls -la /opt/Audiveris/bin/ || echo "Audiveris bin directory not found"
+# Verify Audiveris is accessible and check actual binary name
+RUN echo "=== Contents of /opt/Audiveris/bin/ ===" && \
+    ls -la /opt/Audiveris/bin/ && \
+    echo "=== Checking for Audiveris binary ===" && \
+    (test -f /opt/Audiveris/bin/Audiveris && echo "Found: Audiveris (capital A)") || \
+    (test -f /opt/Audiveris/bin/audiveris && echo "Found: audiveris (lowercase a)") || \
+    echo "ERROR: No Audiveris binary found!"
 
-# Set AUDIVERIS_PATH to the exact binary location
-ENV AUDIVERIS_PATH="/opt/Audiveris/bin/Audiveris"
+# Set AUDIVERIS_PATH to the actual binary location
+# The .deb package likely installs as lowercase 'audiveris'
+ENV AUDIVERIS_PATH="/opt/Audiveris/bin/audiveris"
 
 # Set working directory
 WORKDIR /app
