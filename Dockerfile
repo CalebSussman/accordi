@@ -20,27 +20,42 @@ RUN wget https://github.com/Audiveris/audiveris/releases/download/5.8.1/Audiveri
     dpkg -i Audiveris-5.8.1-ubuntu22.04-x86_64.deb || apt-get install -f -y && \
     rm Audiveris-5.8.1-ubuntu22.04-x86_64.deb
 
-# Find where Audiveris was installed and verify it works
-RUN echo "=== Finding Audiveris installation ===" && \
-    find / -name "Audiveris" -o -name "audiveris" 2>/dev/null | head -10 && \
-    echo "=== Checking dpkg contents ===" && \
-    dpkg -L audiveris 2>/dev/null | grep -i bin || true
+# CRITICAL: Verify what dpkg actually installed
+RUN echo "=== Listing ALL files installed by audiveris package ===" && \
+    dpkg -L audiveris && \
+    echo "=== Searching filesystem for Audiveris ===" && \
+    find / -name "*udiveris*" -o -name "*Audiveris*" 2>/dev/null | head -20 && \
+    echo "=== Checking if /opt exists ===" && \
+    ls -la /opt/ || echo "/opt does not exist" && \
+    echo "=== End of Audiveris verification ==="
 
-# Add Audiveris to PATH based on where it was installed
-# The .deb package installs to /opt/Audiveris/bin
-ENV PATH="/opt/Audiveris/bin:${PATH}"
+# Try to determine actual installation path
+RUN AUDIVERIS_BIN=$(find /opt -name "Audiveris" -o -name "audiveris" 2>/dev/null | head -1) && \
+    if [ -n "$AUDIVERIS_BIN" ]; then \
+        echo "Found Audiveris at: $AUDIVERIS_BIN"; \
+        AUDIVERIS_DIR=$(dirname "$AUDIVERIS_BIN"); \
+        echo "Audiveris directory: $AUDIVERIS_DIR"; \
+        export PATH="$AUDIVERIS_DIR:$PATH"; \
+    else \
+        echo "ERROR: Could not find Audiveris binary!"; \
+        exit 1; \
+    fi
 
-# Verify Audiveris is accessible and check actual binary name
-RUN echo "=== Contents of /opt/Audiveris/bin/ ===" && \
-    ls -la /opt/Audiveris/bin/ && \
-    echo "=== Checking for Audiveris binary ===" && \
-    (test -f /opt/Audiveris/bin/Audiveris && echo "Found: Audiveris (capital A)") || \
-    (test -f /opt/Audiveris/bin/audiveris && echo "Found: audiveris (lowercase a)") || \
-    echo "ERROR: No Audiveris binary found!"
-
-# Set AUDIVERIS_PATH to the actual binary location
-# The .deb package likely installs as lowercase 'audiveris'
-ENV AUDIVERIS_PATH="/opt/Audiveris/bin/audiveris"
+# Set AUDIVERIS_PATH based on what we found
+# Check multiple possible locations
+ENV AUDIVERIS_PATH="/opt/Audiveris/bin/Audiveris"
+RUN if [ -f "/opt/Audiveris/bin/Audiveris" ]; then \
+        echo "Found at: /opt/Audiveris/bin/Audiveris"; \
+    elif [ -f "/opt/Audiveris/bin/audiveris" ]; then \
+        echo "Found at: /opt/Audiveris/bin/audiveris"; \
+        export AUDIVERIS_PATH="/opt/Audiveris/bin/audiveris"; \
+    elif [ -f "/usr/local/bin/Audiveris" ]; then \
+        echo "Found at: /usr/local/bin/Audiveris"; \
+        export AUDIVERIS_PATH="/usr/local/bin/Audiveris"; \
+    else \
+        echo "ERROR: Cannot locate Audiveris binary"; \
+        exit 1; \
+    fi
 
 # Set working directory
 WORKDIR /app
