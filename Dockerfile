@@ -23,10 +23,10 @@ RUN apt-get update && apt-get install -y \
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
 # Download and install Audiveris
-# CACHE BUST: 2025-12-10-v4 - Fixed install with proper dependency handling
+# CACHE BUST: 2025-12-10-v5 - Allow post-install script failures (desktop integration not needed in Docker)
 WORKDIR /tmp
 RUN wget https://github.com/Audiveris/audiveris/releases/download/5.8.1/Audiveris-5.8.1-ubuntu22.04-x86_64.deb && \
-    dpkg -i Audiveris-5.8.1-ubuntu22.04-x86_64.deb && \
+    (dpkg -i Audiveris-5.8.1-ubuntu22.04-x86_64.deb || true) && \
     rm Audiveris-5.8.1-ubuntu22.04-x86_64.deb
 
 # CRITICAL: Verify what dpkg actually installed
