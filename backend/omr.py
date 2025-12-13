@@ -52,19 +52,18 @@ class OMRProcessor:
 
     def _check_oemer_available(self) -> None:
         """
-        Check if OEMER is available.
+        Check if OEMER CLI is available.
 
         Raises:
             OMRError: If OEMER is not found
         """
-        try:
-            import oemer
-            logger.info("OEMER is available")
-        except ImportError:
-            logger.error("OEMER not installed")
+        oemer_path = shutil.which("oemer")
+        if not oemer_path:
+            logger.error("OEMER CLI not found in PATH")
             raise OMRError(
                 "OEMER not found. Please install with: pip install oemer"
             )
+        logger.info(f"OEMER CLI available at: {oemer_path}")
 
     def _check_audiveris_available(self) -> None:
         """
@@ -139,7 +138,7 @@ class OMRProcessor:
         timeout: int
     ) -> Tuple[Path, dict]:
         """
-        Process PDF with OEMER engine.
+        Process PDF with OEMER engine via CLI.
 
         Args:
             pdf_path: Path to input PDF file
@@ -153,29 +152,35 @@ class OMRProcessor:
             OMRError: If processing fails
         """
         try:
-            import oemer
-
-            # Expected MusicXML output path
+            # OEMER generates filename based on input, outputs to specified directory
+            # Format: {stem}.musicxml
             musicxml_path = output_dir / f"{pdf_path.stem}.musicxml"
 
-            logger.info(f"Running OEMER on {pdf_path}")
+            logger.info(f"Running OEMER CLI on {pdf_path}")
 
-            # OEMER processes the PDF and generates MusicXML
-            # Run in executor to avoid blocking
-            def run_oemer():
-                try:
-                    # OEMER API: oemer.ommr(input_path, output_path)
-                    result = oemer.ommr(str(pdf_path), str(musicxml_path))
-                    return result
-                except Exception as e:
-                    raise OMRError(f"OEMER processing error: {str(e)}")
+            # Run OEMER as command-line tool
+            # Command: oemer <input_pdf> -o <output_dir>
+            process = await asyncio.create_subprocess_exec(
+                "oemer",
+                str(pdf_path),
+                "-o", str(output_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
 
-            # Run with timeout
-            loop = asyncio.get_event_loop()
-            result = await asyncio.wait_for(
-                loop.run_in_executor(None, run_oemer),
+            # Wait for completion with timeout
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
                 timeout=timeout
             )
+
+            # Check return code
+            if process.returncode != 0:
+                error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
+                logger.error(f"OEMER failed: {error_msg}")
+                raise OMRError(
+                    f"OEMER processing failed with code {process.returncode}: {error_msg}"
+                )
 
             # Verify output file was created
             if not musicxml_path.exists():
@@ -199,8 +204,8 @@ class OMRProcessor:
                 f"Processing timed out after {timeout} seconds. "
                 f"The PDF may be too large or complex."
             )
-        except ImportError:
-            logger.error("OEMER not installed")
+        except FileNotFoundError:
+            logger.error("OEMER command not found")
             raise OMRError("OEMER not found. Please install with: pip install oemer")
         except Exception as e:
             logger.error(f"Unexpected error during OEMER processing: {e}")
