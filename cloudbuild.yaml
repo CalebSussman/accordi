@@ -10,7 +10,7 @@ steps:
       - "gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA"
       - "-f"
       - "audiveris-service/Dockerfile"
-      - "audiveris-service"
+      - "."
 
   - name: "gcr.io/cloud-builders/docker"
     args:

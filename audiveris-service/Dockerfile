@@ -8,12 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Audiveris 5.3.1
+# Install Audiveris 5.3.1 from vendored archive in repo (tools/audiveris-5.3.1.zip)
 ENV AUDIVERIS_VERSION=5.3.1
 ENV AUDIVERIS_HOME=/opt/Audiveris
-RUN curl -L "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/audiveris-${AUDIVERIS_VERSION}.zip" \
-    -o /tmp/audiveris.zip \
-    && unzip /tmp/audiveris.zip -d /opt \
+COPY tools/audiveris-5.3.1.zip /tmp/audiveris.zip
+RUN unzip /tmp/audiveris.zip -d /opt \
     && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
     && rm /tmp/audiveris.zip
 
