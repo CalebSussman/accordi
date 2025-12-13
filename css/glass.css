@@ -55,7 +55,7 @@
 .nav-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
 }
 
 .logo {
@@ -178,11 +178,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all var(--transition-base);
+  box-shadow: 0 2px 8px var(--shadow-soft);
 }
 
 .btn-icon:hover {
   background: var(--score-bg);
   border-color: var(--gold-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
 }
 
 /* Play button (gold, circular) */
