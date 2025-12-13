@@ -13,17 +13,21 @@ ENV AUDIVERIS_VERSION=5.3.1
 ENV AUDIVERIS_HOME=/opt/Audiveris
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    maven \
     && rm -rf /var/lib/apt/lists/* \
     && curl -L "https://github.com/Audiveris/audiveris/archive/refs/tags/${AUDIVERIS_VERSION}.zip" -o /tmp/audiveris-src.zip \
     && unzip /tmp/audiveris-src.zip -d /tmp \
     && mv /tmp/audiveris-${AUDIVERIS_VERSION} /tmp/audiveris \
     && rm /tmp/audiveris-src.zip \
     && cd /tmp/audiveris \
-    && test -f pom.xml || (echo \"pom.xml not found after extracting archive\" && ls -la && exit 1) \
-    && mvn -DskipTests package \
-    && unzip target/distributions/audiveris-${AUDIVERIS_VERSION}.zip -d /opt \
-    && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
+    && test -f build.gradle || (echo \"build.gradle not found after extracting archive\" && ls -la && exit 1) \
+    && chmod +x gradlew \
+    && ./gradlew --no-daemon -x test assembleDist \
+    && DIST_ZIP=$(find build/distributions -maxdepth 1 -name \"audiveris-*.zip\" -print -quit) \
+    && [ -n \"$DIST_ZIP\" ] \
+    && unzip \"$DIST_ZIP\" -d /opt \
+    && AUDIVERIS_EXTRACTED=$(find /opt -maxdepth 1 -type d -name \"audiveris*\" -print -quit) \
+    && [ -n \"$AUDIVERIS_EXTRACTED\" ] \
+    && mv \"$AUDIVERIS_EXTRACTED\" \"${AUDIVERIS_HOME}\" \
     && rm -rf /tmp/audiveris
 
 ENV AUDIVERIS_PATH=${AUDIVERIS_HOME}/bin/Audiveris
