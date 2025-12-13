@@ -8,32 +8,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Audiveris 5.3.1 from source archive
+# Install Audiveris 5.3.1 from release distribution
 ENV AUDIVERIS_VERSION=5.3.1
 ENV AUDIVERIS_HOME=/opt/Audiveris
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
+    unzip \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -L "https://github.com/Audiveris/audiveris/archive/refs/tags/${AUDIVERIS_VERSION}.zip" -o /tmp/audiveris-src.zip \
-    && unzip /tmp/audiveris-src.zip -d /tmp \
-    && mv /tmp/audiveris-${AUDIVERIS_VERSION} /tmp/audiveris \
-    && rm /tmp/audiveris-src.zip \
-    && cd /tmp/audiveris \
-    && test -f build.gradle || (echo \"build.gradle not found after extracting archive\" && ls -la && exit 1) \
-    && git init \
-    && git config user.email \"builder@localhost\" \
-    && git config user.name \"Docker Builder\" \
-    && git add . \
-    && git commit -m \"build\" >/dev/null \
-    && chmod +x gradlew \
-    && ./gradlew --no-daemon -x test -x git_build -PprogramBuild=docker assembleDist \
-    && DIST_ZIP=$(find build/distributions -maxdepth 1 -name \"audiveris-*.zip\" -print -quit) \
-    && [ -n \"$DIST_ZIP\" ] \
-    && unzip \"$DIST_ZIP\" -d /opt \
-    && AUDIVERIS_EXTRACTED=$(find /opt -maxdepth 1 -type d -name \"audiveris*\" -print -quit) \
-    && [ -n \"$AUDIVERIS_EXTRACTED\" ] \
-    && mv \"$AUDIVERIS_EXTRACTED\" \"${AUDIVERIS_HOME}\" \
-    && rm -rf /tmp/audiveris
+    && curl -L "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/audiveris-${AUDIVERIS_VERSION}.zip" -o /tmp/audiveris.zip \
+    && unzip /tmp/audiveris.zip -d /opt \
+    && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
+    && rm -rf /tmp/audiveris.zip
 
 ENV AUDIVERIS_PATH=${AUDIVERIS_HOME}/bin/Audiveris
 
