@@ -12,6 +12,9 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple, Literal
 import logging
+import aiohttp
+import aiofiles
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,7 @@ class OMRProcessor:
             engine: Which OMR engine to use ("oemer" or "audiveris")
         """
         self.engine = engine
+        self.audiveris_api_url = os.getenv("AUDIVERIS_API_URL")
         logger.info(f"Initializing OMR processor with engine: {engine}")
 
         if engine == "oemer":
@@ -67,17 +71,22 @@ class OMRProcessor:
 
     def _check_audiveris_available(self) -> None:
         """
-        Check if Audiveris is available via Docker.
+        Check if Audiveris is available via Cloud Run or Docker.
 
         Raises:
-            OMRError: If Docker or Audiveris image is not available
+            OMRError: If neither Cloud Run nor Docker is available
         """
+        if self.audiveris_api_url:
+            logger.info(f"Using Audiveris via Cloud Run: {self.audiveris_api_url}")
+            return
+
         # Check if Docker is available
         docker_path = shutil.which("docker")
         if not docker_path:
-            logger.error("Docker not found")
+            logger.error("Docker not found and AUDIVERIS_API_URL not configured")
             raise OMRError(
-                "Docker not found. Audiveris requires Docker to be installed."
+                "Audiveris not available. Configure AUDIVERIS_API_URL for Cloud Run "
+                "or install Docker with the jbarthelemy/audiveris image."
             )
 
         # Check if Audiveris Docker image is available
@@ -140,6 +149,8 @@ class OMRProcessor:
         """
         Process PDF with OEMER engine via CLI.
 
+        OEMER requires image input, so we convert PDF to PNG first.
+
         Args:
             pdf_path: Path to input PDF file
             output_dir: Directory for output files
@@ -152,17 +163,39 @@ class OMRProcessor:
             OMRError: If processing fails
         """
         try:
-            # OEMER generates filename based on input, outputs to specified directory
-            # Format: {stem}.musicxml
+            # OEMER only accepts images, not PDFs
+            # Convert PDF to PNG first using pdf2image
+            try:
+                from pdf2image import convert_from_path
+            except ImportError:
+                raise OMRError(
+                    "pdf2image not installed. Please install with: pip install pdf2image"
+                )
+
+            logger.info(f"Converting PDF to image for OEMER: {pdf_path}")
+
+            # Convert first page of PDF to image
+            images = convert_from_path(str(pdf_path), first_page=1, last_page=1, dpi=300)
+
+            if not images:
+                raise OMRError("Failed to convert PDF to image")
+
+            # Save as PNG
+            image_path = output_dir / f"{pdf_path.stem}.png"
+            images[0].save(image_path, 'PNG')
+
+            logger.info(f"Converted PDF to image: {image_path}")
+
+            # OEMER generates filename based on input
             musicxml_path = output_dir / f"{pdf_path.stem}.musicxml"
 
-            logger.info(f"Running OEMER CLI on {pdf_path}")
+            logger.info(f"Running OEMER CLI on {image_path}")
 
             # Run OEMER as command-line tool
-            # Command: oemer <input_pdf> -o <output_dir>
+            # Command: oemer <input_image> -o <output_dir>
             process = await asyncio.create_subprocess_exec(
                 "oemer",
-                str(pdf_path),
+                str(image_path),
                 "-o", str(output_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
@@ -173,6 +206,10 @@ class OMRProcessor:
                 process.communicate(),
                 timeout=timeout
             )
+
+            # Clean up temporary image
+            if image_path.exists():
+                image_path.unlink()
 
             # Check return code
             if process.returncode != 0:
@@ -218,7 +255,7 @@ class OMRProcessor:
         timeout: int
     ) -> Tuple[Path, dict]:
         """
-        Process PDF with Audiveris engine via Docker.
+        Process PDF with Audiveris engine via Cloud Run (preferred) or Docker.
 
         Args:
             pdf_path: Path to input PDF file
@@ -232,68 +269,18 @@ class OMRProcessor:
             OMRError: If processing fails
         """
         try:
-            # Expected MusicXML output path
-            musicxml_path = output_dir / f"{pdf_path.stem}.mxl"
-
-            # Get absolute paths for Docker volume mounting
-            pdf_abs = pdf_path.absolute()
-            output_abs = output_dir.absolute()
-
-            logger.info(f"Running Audiveris via Docker on {pdf_path}")
-
-            # Docker command to run Audiveris
-            # Mount input PDF and output directory as volumes
-            docker_cmd = [
-                "docker", "run", "--rm",
-                "-v", f"{pdf_abs.parent}:/input:ro",
-                "-v", f"{output_abs}:/output",
-                "jbarthelemy/audiveris:latest",
-                "-batch",
-                "-export",
-                "-output", "/output",
-                f"/input/{pdf_abs.name}"
-            ]
-
-            # Run Docker command
-            process = await asyncio.create_subprocess_exec(
-                *docker_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-
-            # Wait for process with timeout
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
-            )
-
-            # Check return code
-            if process.returncode != 0:
-                error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
-                logger.error(f"Audiveris failed: {error_msg}")
-                raise OMRError(
-                    f"Audiveris processing failed with code {process.returncode}: {error_msg}"
+            if self.audiveris_api_url:
+                return await self._process_with_audiveris_api(
+                    pdf_path=pdf_path,
+                    output_dir=output_dir,
+                    timeout=timeout
                 )
 
-            # Verify output file was created
-            if not musicxml_path.exists():
-                # Try alternative extensions
-                alt_path = output_dir / f"{pdf_path.stem}.musicxml"
-                if alt_path.exists():
-                    musicxml_path = alt_path
-                else:
-                    raise OMRError(
-                        f"Audiveris completed but output file not found: {musicxml_path}"
-                    )
-
-            logger.info(f"Audiveris processing completed: {musicxml_path}")
-
-            # Parse metadata from output
-            metadata = self._parse_audiveris_output(stdout.decode('utf-8'))
-            metadata["engine"] = "audiveris"
-
-            return musicxml_path, metadata
-
+            return await self._process_with_audiveris_docker(
+                pdf_path=pdf_path,
+                output_dir=output_dir,
+                timeout=timeout
+            )
         except asyncio.TimeoutError:
             logger.error(f"Audiveris processing timed out after {timeout} seconds")
             raise OMRError(
@@ -303,6 +290,239 @@ class OMRProcessor:
         except Exception as e:
             logger.error(f"Unexpected error during Audiveris processing: {e}")
             raise OMRError(f"Audiveris processing failed: {str(e)}")
+
+    async def _process_with_audiveris_api(
+        self,
+        pdf_path: Path,
+        output_dir: Path,
+        timeout: int
+    ) -> Tuple[Path, dict]:
+        """
+        Process PDF with Audiveris Cloud Run API.
+
+        Args:
+            pdf_path: Path to input PDF file
+            output_dir: Directory for output files
+            timeout: Maximum processing time in seconds
+
+        Returns:
+            Tuple of (musicxml_path, metadata_dict)
+
+        Raises:
+            OMRError: If processing fails
+        """
+        api_url = self.audiveris_api_url
+        if not api_url:
+            raise OMRError("AUDIVERIS_API_URL not configured")
+
+        default_filename = f"{pdf_path.stem}.mxl"
+        try:
+            logger.info(f"Calling Audiveris Cloud Run at {api_url}")
+
+            headers = {}
+            auth_header = self._get_audiveris_auth_header(api_url)
+            if auth_header:
+                headers["Authorization"] = auth_header
+
+            async with aiohttp.ClientSession(headers=headers or None) as session:
+                with pdf_path.open("rb") as pdf_file:
+                    form = aiohttp.FormData()
+                    form.add_field(
+                        "file",
+                        pdf_file,
+                        filename=pdf_path.name,
+                        content_type="application/pdf"
+                    )
+
+                    response_timeout = aiohttp.ClientTimeout(total=timeout)
+                    async with session.post(
+                        f"{api_url}/process",
+                        data=form,
+                        timeout=response_timeout
+                    ) as resp:
+                        if resp.status != 200:
+                            error = await resp.text()
+                            logger.error(
+                                "Audiveris API error %s: %s",
+                                resp.status,
+                                error
+                            )
+                            raise OMRError(
+                                f"Audiveris API failed with status {resp.status}: {error}"
+                            )
+
+                        disposition = resp.headers.get("content-disposition", "")
+                        filename = default_filename
+                        if "filename=" in disposition:
+                            filename = disposition.split("filename=")[-1].strip().strip('"')
+                        if not filename:
+                            filename = default_filename
+
+                        musicxml_path = output_dir / filename
+
+                        async with aiofiles.open(musicxml_path, 'wb') as out_file:
+                            await out_file.write(await resp.read())
+
+            if not musicxml_path.exists():
+                raise OMRError("Audiveris API completed but no output file was saved")
+
+            metadata = {
+                "engine": "audiveris",
+                "success": True,
+                "warnings": [],
+                "errors": [],
+                "source": "cloud_run"
+            }
+
+            logger.info("Audiveris Cloud Run processing completed: %s", musicxml_path)
+            return musicxml_path, metadata
+
+        except asyncio.TimeoutError:
+            logger.error("Audiveris API timeout after %s seconds", timeout)
+            raise OMRError("Audiveris Cloud Run processing timed out")
+        except aiohttp.ClientError as e:
+            logger.error("Audiveris API client error: %s", e)
+            raise OMRError(f"Audiveris API client error: {e}")
+        except Exception as e:
+            logger.error("Unexpected Audiveris API error: %s", e)
+            raise OMRError(f"Audiveris Cloud Run processing failed: {e}")
+
+    @lru_cache(maxsize=1)
+    def _get_audiveris_auth_header(self, api_url: str) -> Optional[str]:
+        """
+        Build Authorization header for Audiveris Cloud Run if required.
+
+        Priority:
+        1. AUDIVERIS_API_BEARER_TOKEN (explicit token)
+        2. AUDIVERIS_REQUIRE_AUTH=true with ID token from service account/default creds
+        3. Otherwise, no auth header
+        """
+        explicit_token = os.getenv("AUDIVERIS_API_BEARER_TOKEN")
+        if explicit_token:
+            return f"Bearer {explicit_token}"
+
+        require_auth = os.getenv("AUDIVERIS_REQUIRE_AUTH", "false").lower() == "true"
+        if not require_auth:
+            return None
+
+        audience = os.getenv("AUDIVERIS_API_AUDIENCE", api_url)
+        service_account_path = os.getenv("AUDIVERIS_SERVICE_ACCOUNT_JSON")
+
+        try:
+            from google.auth.transport.requests import Request as GoogleAuthRequest
+            from google.oauth2 import service_account
+            from google.auth import default as google_auth_default
+            from google.auth import jwt
+        except ImportError as exc:
+            raise OMRError(
+                "AUDIVERIS_REQUIRE_AUTH is true but google-auth is not installed. "
+                "Install google-auth and requests or provide AUDIVERIS_API_BEARER_TOKEN."
+            ) from exc
+
+        credentials = None
+        if service_account_path:
+            credentials = service_account.IDTokenCredentials.from_service_account_file(
+                service_account_path,
+                target_audience=audience
+            )
+        else:
+            default_creds, _ = google_auth_default()
+            if hasattr(default_creds, "with_claims"):
+                credentials = default_creds.with_claims(audience=audience)
+            else:
+                raise OMRError(
+                    "Could not derive ID token from default credentials. "
+                    "Set AUDIVERIS_SERVICE_ACCOUNT_JSON to a service account key file."
+                )
+
+        credentials.refresh(GoogleAuthRequest())
+        if not credentials.token:
+            raise OMRError("Failed to acquire ID token for Audiveris API.")
+
+        return f"Bearer {credentials.token}"
+
+    async def _process_with_audiveris_docker(
+        self,
+        pdf_path: Path,
+        output_dir: Path,
+        timeout: int
+    ) -> Tuple[Path, dict]:
+        """
+        Process PDF with Audiveris engine via Docker.
+
+        Args:
+            pdf_path: Path to input PDF file
+            output_dir: Directory for output files
+            timeout: Maximum processing time in seconds
+
+        Returns:
+            Tuple of (musicxml_path, metadata_dict)
+
+        Raises:
+            OMRError: If processing fails
+        """
+        # Expected MusicXML output path
+        musicxml_path = output_dir / f"{pdf_path.stem}.mxl"
+
+        # Get absolute paths for Docker volume mounting
+        pdf_abs = pdf_path.absolute()
+        output_abs = output_dir.absolute()
+
+        logger.info(f"Running Audiveris via Docker on {pdf_path}")
+
+        # Docker command to run Audiveris
+        # Mount input PDF and output directory as volumes
+        docker_cmd = [
+            "docker", "run", "--rm",
+            "-v", f"{pdf_abs.parent}:/input:ro",
+            "-v", f"{output_abs}:/output",
+            "jbarthelemy/audiveris:latest",
+            "-batch",
+            "-export",
+            "-output", "/output",
+            f"/input/{pdf_abs.name}"
+        ]
+
+        # Run Docker command
+        process = await asyncio.create_subprocess_exec(
+            *docker_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        # Wait for process with timeout
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout
+        )
+
+        # Check return code
+        if process.returncode != 0:
+            error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
+            logger.error(f"Audiveris failed: {error_msg}")
+            raise OMRError(
+                f"Audiveris processing failed with code {process.returncode}: {error_msg}"
+            )
+
+        # Verify output file was created
+        if not musicxml_path.exists():
+            # Try alternative extensions
+            alt_path = output_dir / f"{pdf_path.stem}.musicxml"
+            if alt_path.exists():
+                musicxml_path = alt_path
+            else:
+                raise OMRError(
+                    f"Audiveris completed but output file not found: {musicxml_path}"
+                )
+
+        logger.info(f"Audiveris processing completed: {musicxml_path}")
+
+        # Parse metadata from output
+        metadata = self._parse_audiveris_output(stdout.decode('utf-8'))
+        metadata["engine"] = "audiveris"
+        metadata["source"] = "docker"
+
+        return musicxml_path, metadata
 
     def _parse_audiveris_output(self, output: str) -> dict:
         """
