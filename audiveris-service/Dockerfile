@@ -20,6 +20,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm /tmp/audiveris-src.zip \
     && cd /tmp/audiveris \
     && test -f build.gradle || (echo \"build.gradle not found after extracting archive\" && ls -la && exit 1) \
+    && git init \
+    && git config user.email \"builder@localhost\" \
+    && git config user.name \"Docker Builder\" \
+    && git add . \
+    && git commit -m \"build\" >/dev/null \
     && chmod +x gradlew \
     && ./gradlew --no-daemon -x test assembleDist \
     && DIST_ZIP=$(find build/distributions -maxdepth 1 -name \"audiveris-*.zip\" -print -quit) \
