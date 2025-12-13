@@ -31,6 +31,46 @@ Next Steps:
 
 3. **Commit the session log** alongside code changes
 
+## GOOGLE CLOUD CLI SETUP
+
+### Initial Setup (one-time per machine)
+If `gcloud` is not installed, install it with:
+```bash
+curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=$HOME
+```
+
+### Session Setup (required each Claude Code session)
+Add gcloud to PATH and authenticate:
+```bash
+# Add to PATH
+export PATH="$HOME/google-cloud-sdk/bin:$PATH"
+
+# Authenticate (first time or when credentials expire)
+gcloud auth login
+
+# Set the correct project
+gcloud config set project accordi-481103
+```
+
+### Viewing Cloud Run Logs
+```bash
+# View recent logs
+gcloud run services logs read audiveris-omr --region us-central1 --limit 50
+
+# View logs with timestamps
+gcloud run services logs read audiveris-omr --region us-central1 --limit 100 --format="table(timestamp,severity,textPayload)"
+
+# Tail logs in real-time (alternative: use Cloud Console)
+# https://console.cloud.google.com/run/detail/us-central1/audiveris-omr/logs?project=accordi-481103
+```
+
+### Project Information
+- **Project ID**: `accordi-481103`
+- **Project Number**: `972258254932`
+- **Project Name**: Accordi
+- **Cloud Run Region**: `us-central1`
+- **Audiveris Service Name**: `audiveris-omr`
+
 ## CODING STANDARDS
 
 ### General Principles
