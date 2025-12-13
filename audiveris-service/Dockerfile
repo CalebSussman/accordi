@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && git add . \
     && git commit -m \"build\" >/dev/null \
     && chmod +x gradlew \
-    && ./gradlew --no-daemon -x test assembleDist \
+    && ./gradlew --no-daemon -x test -x git_build -PprogramBuild=docker assembleDist \
     && DIST_ZIP=$(find build/distributions -maxdepth 1 -name \"audiveris-*.zip\" -print -quit) \
     && [ -n \"$DIST_ZIP\" ] \
     && unzip \"$DIST_ZIP\" -d /opt \
