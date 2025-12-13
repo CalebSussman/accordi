@@ -1,10 +1,23 @@
-FROM jbarthelemy/audiveris:latest
+FROM openjdk:17-jdk-slim
 
-# Install Python runtime and dependencies for FastAPI wrapper
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
+    curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Download and install Audiveris 5.3.1
+ENV AUDIVERIS_VERSION=5.3.1
+ENV AUDIVERIS_HOME=/opt/Audiveris
+RUN curl -L "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/audiveris-${AUDIVERIS_VERSION}.zip" \
+    -o /tmp/audiveris.zip \
+    && unzip /tmp/audiveris.zip -d /opt \
+    && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
+    && rm /tmp/audiveris.zip
+
+ENV AUDIVERIS_PATH=${AUDIVERIS_HOME}/bin/Audiveris
 
 WORKDIR /app
 
