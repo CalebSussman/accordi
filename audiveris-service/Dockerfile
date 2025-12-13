@@ -40,12 +40,12 @@ RUN cd /tmp/audiveris \
 # Extract and install the built distribution
 RUN cd /tmp/audiveris \
     && ls -la build/distributions/ \
-    && DIST_ZIP=$(find build/distributions -maxdepth 1 -name "audiveris-*.zip" | head -n 1) \
+    && DIST_ZIP=$(find build/distributions -maxdepth 1 -name "Audiveris-*.zip" -o -name "audiveris-*.zip" | head -n 1) \
     && echo "Found distribution: $DIST_ZIP" \
     && if [ -z "$DIST_ZIP" ]; then echo "ERROR: No distribution zip found"; exit 1; fi \
     && unzip "$DIST_ZIP" -d /opt \
     && ls -la /opt/ \
-    && AUDIVERIS_DIR=$(find /opt -maxdepth 1 -type d -name "audiveris*" -o -name "Audiveris*" | head -n 1) \
+    && AUDIVERIS_DIR=$(find /opt -maxdepth 1 -type d -name "Audiveris-*" -o -name "audiveris-*" | head -n 1) \
     && echo "Found extracted dir: $AUDIVERIS_DIR" \
     && if [ -z "$AUDIVERIS_DIR" ]; then echo "ERROR: No audiveris directory found in /opt"; exit 1; fi \
     && mv "$AUDIVERIS_DIR" "${AUDIVERIS_HOME}" \
