@@ -125,10 +125,90 @@
   color: var(--text-primary);
 }
 
-.processing-progress {
+/* Progress Bar Container */
+.progress-container {
+  margin-top: var(--spacing-lg);
+  width: 400px;
+  max-width: 90%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-primary), #FFD700);
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+  width: 0%;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.progress-percentage {
   margin-top: var(--spacing-sm);
   font-size: 0.875rem;
   color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Progress Steps */
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.progress-step.active {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.progress-step.completed {
+  opacity: 0.7;
+}
+
+.step-icon {
+  font-size: 2rem;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.progress-step.active .step-icon {
+  filter: grayscale(0%);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.progress-step.completed .step-icon {
+  filter: grayscale(0%);
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.step-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* Cursor highlight for playback */

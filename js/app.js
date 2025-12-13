@@ -331,7 +331,7 @@ async function handleFile(file) {
 }
 
 /**
- * Update processing status
+ * Update processing status with progress bar and step indicators
  */
 function updateProcessingStatus(message, progress) {
     if (elements.processingText) {
@@ -339,6 +339,39 @@ function updateProcessingStatus(message, progress) {
     }
     if (elements.processingProgress) {
         elements.processingProgress.textContent = `${Math.round(progress)}%`;
+    }
+
+    // Update progress bar fill
+    const progressFillElement = document.getElementById('progressFill');
+    if (progressFillElement) {
+        progressFillElement.style.width = `${progress}%`;
+    }
+
+    // Update step indicators based on progress
+    const uploadStep = document.getElementById('step-upload');
+    const omrStep = document.getElementById('step-omr');
+    const renderStep = document.getElementById('step-render');
+
+    // Reset all steps
+    [uploadStep, omrStep, renderStep].forEach(step => {
+        if (step) {
+            step.classList.remove('active', 'completed');
+        }
+    });
+
+    // Set active/completed states based on progress
+    if (progress < 20) {
+        // Uploading phase
+        uploadStep?.classList.add('active');
+    } else if (progress < 95) {
+        // OMR processing phase
+        uploadStep?.classList.add('completed');
+        omrStep?.classList.add('active');
+    } else {
+        // Rendering phase
+        uploadStep?.classList.add('completed');
+        omrStep?.classList.add('completed');
+        renderStep?.classList.add('active');
     }
 }
 

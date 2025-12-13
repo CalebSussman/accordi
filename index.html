@@ -135,7 +135,30 @@
         <div id="processingOverlay" class="processing-overlay hidden">
             <div class="spinner"></div>
             <div class="processing-text" id="processingText">Processing your score...</div>
-            <div class="processing-progress tabular-nums" id="processingProgress">0%</div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-percentage tabular-nums" id="processingProgress">0%</div>
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="progress-steps">
+                <div class="progress-step" id="step-upload">
+                    <div class="step-icon">📄</div>
+                    <div class="step-label">Uploading</div>
+                </div>
+                <div class="progress-step" id="step-omr">
+                    <div class="step-icon">🎵</div>
+                    <div class="step-label">Converting to MusicXML</div>
+                </div>
+                <div class="progress-step" id="step-render">
+                    <div class="step-icon">🎹</div>
+                    <div class="step-label">Rendering Score</div>
+                </div>
+            </div>
         </div>
 
         <!-- OSMD will render here after processing -->
