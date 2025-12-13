@@ -36,3 +36,6 @@ steps:
       - "2"
       - "--timeout"
       - "600"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
