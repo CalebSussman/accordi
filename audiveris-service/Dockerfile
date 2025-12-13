@@ -8,13 +8,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Audiveris 5.3.1 from vendored archive in repo (tools/audiveris-5.3.1.zip)
+# Build and install Audiveris 5.3.1 from source
 ENV AUDIVERIS_VERSION=5.3.1
 ENV AUDIVERIS_HOME=/opt/Audiveris
-COPY tools/audiveris-5.3.1.zip /tmp/audiveris.zip
-RUN unzip /tmp/audiveris.zip -d /opt \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    maven \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --depth 1 --branch ${AUDIVERIS_VERSION} https://github.com/Audiveris/audiveris.git /tmp/audiveris \
+    && cd /tmp/audiveris \
+    && mvn -DskipTests package \
+    && unzip target/distributions/audiveris-${AUDIVERIS_VERSION}.zip -d /opt \
     && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
-    && rm /tmp/audiveris.zip
+    && rm -rf /tmp/audiveris
 
 ENV AUDIVERIS_PATH=${AUDIVERIS_HOME}/bin/Audiveris
 
