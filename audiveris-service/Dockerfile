@@ -15,10 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     maven \
     && rm -rf /var/lib/apt/lists/* \
-    && git clone --depth 1 https://github.com/Audiveris/audiveris.git /tmp/audiveris \
+    && git clone --branch ${AUDIVERIS_VERSION} --depth 1 https://github.com/Audiveris/audiveris.git /tmp/audiveris \
     && cd /tmp/audiveris \
-    && git fetch origin --tags \
-    && git checkout refs/tags/${AUDIVERIS_VERSION} || git checkout ${AUDIVERIS_VERSION} || true \
+    && git submodule update --init --recursive \
     && test -f pom.xml || (echo \"pom.xml not found after checkout\" && exit 1) \
     && mvn -DskipTests package \
     && unzip target/distributions/audiveris-${AUDIVERIS_VERSION}.zip -d /opt \
