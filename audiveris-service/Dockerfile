@@ -15,8 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     maven \
     && rm -rf /var/lib/apt/lists/* \
-    && git clone --depth 1 --branch ${AUDIVERIS_VERSION} https://github.com/Audiveris/audiveris.git /tmp/audiveris \
+    && git clone --depth 1 https://github.com/Audiveris/audiveris.git /tmp/audiveris \
     && cd /tmp/audiveris \
+    && git fetch --depth 1 origin ${AUDIVERIS_VERSION} || true \
+    && git checkout ${AUDIVERIS_VERSION} || git checkout tags/${AUDIVERIS_VERSION} || true \
+    && test -f pom.xml \
     && mvn -DskipTests package \
     && unzip target/distributions/audiveris-${AUDIVERIS_VERSION}.zip -d /opt \
     && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
