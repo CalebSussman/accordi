@@ -113,15 +113,43 @@ async def process_pdf(file: UploadFile = File(...)) -> FileResponse:
                 detail=f"Audiveris processing failed: {error_msg}",
             )
 
-        musicxml_path = _find_output_file(pdf_path.stem, output_path)
+        # Log Audiveris output for debugging
+        if stdout:
+            logger.info("Audiveris stdout: %s", stdout.decode("utf-8"))
+        if stderr:
+            logger.info("Audiveris stderr: %s", stderr.decode("utf-8"))
+
+        # List all files in output directory to see what was created
+        output_files = list(output_path.glob("*"))
+        logger.info("Output directory contents: %s", [f.name for f in output_files])
+
+        # Look for any MusicXML file in the output directory
+        musicxml_path = None
+        for pattern in ["*.mxl", "*.musicxml", "*.xml"]:
+            matches = list(output_path.glob(pattern))
+            if matches:
+                musicxml_path = matches[0]
+                logger.info("Found MusicXML output: %s", musicxml_path)
+                break
+
         if not musicxml_path:
             logger.error("Audiveris completed but no output file found for job %s", job_id)
+            logger.error("Searched in %s, found files: %s", output_path, [f.name for f in output_files])
             raise HTTPException(
                 status_code=500,
                 detail="Audiveris completed but no output file found",
             )
 
         logger.info("Audiveris processing completed: %s", musicxml_path)
+
+        # Verify the file has content
+        file_size = musicxml_path.stat().st_size
+        logger.info("MusicXML file size: %d bytes", file_size)
+        if file_size == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Audiveris produced an empty MusicXML file",
+            )
 
         media_type = "application/vnd.recordare.musicxml+xml"
         filename = f"{pdf_path.stem}{musicxml_path.suffix}"
