@@ -1,7 +1,7 @@
 """
 Akkordio Backend - OMR Integration
 
-This module handles Optical Music Recognition using Audiveris CLI.
+This module handles Optical Music Recognition using OEMER or Audiveris.
 Converts PDF music scores to MusicXML format.
 """
 
@@ -10,87 +10,91 @@ import subprocess
 import shutil
 import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Literal
 import logging
 
 logger = logging.getLogger(__name__)
 
+# Type for OMR engine selection
+OMREngine = Literal["oemer", "audiveris"]
 
-class AudiverisError(Exception):
-    """Custom exception for Audiveris-related errors."""
+
+class OMRError(Exception):
+    """Custom exception for OMR-related errors."""
     pass
 
 
 class OMRProcessor:
     """
-    Handles PDF to MusicXML conversion using Audiveris.
+    Handles PDF to MusicXML conversion using OEMER or Audiveris.
 
-    Audiveris is an open-source OMR system that processes sheet music images
-    and converts them to MusicXML format.
+    Supports two OMR engines:
+    - OEMER: Modern deep learning-based OMR (better for photos/scans)
+    - Audiveris: Traditional OMR (better for clean PDFs)
     """
 
-    def __init__(self, audiveris_path: Optional[str] = None):
+    def __init__(self, engine: OMREngine = "oemer"):
         """
         Initialize OMR processor.
 
         Args:
-            audiveris_path: Path to Audiveris executable. If None, checks
-                          AUDIVERIS_PATH env var, then assumes 'Audiveris' is in PATH.
+            engine: Which OMR engine to use ("oemer" or "audiveris")
         """
-        self.audiveris_path = audiveris_path or os.getenv('AUDIVERIS_PATH', 'Audiveris')
-        self._check_audiveris_available()
+        self.engine = engine
+        logger.info(f"Initializing OMR processor with engine: {engine}")
+
+        if engine == "oemer":
+            self._check_oemer_available()
+        elif engine == "audiveris":
+            self._check_audiveris_available()
+        else:
+            raise OMRError(f"Unknown OMR engine: {engine}")
+
+    def _check_oemer_available(self) -> None:
+        """
+        Check if OEMER is available.
+
+        Raises:
+            OMRError: If OEMER is not found
+        """
+        try:
+            import oemer
+            logger.info("OEMER is available")
+        except ImportError:
+            logger.error("OEMER not installed")
+            raise OMRError(
+                "OEMER not found. Please install with: pip install oemer"
+            )
 
     def _check_audiveris_available(self) -> None:
         """
-        Check if Audiveris is available in the system.
+        Check if Audiveris is available via Docker.
 
         Raises:
-            AudiverisError: If Audiveris is not found
+            OMRError: If Docker or Audiveris image is not available
         """
-        # DIAGNOSTIC: Log environment and check what exists
-        logger.info(f"=== AUDIVERIS DIAGNOSTIC ===")
-        logger.info(f"Checking for Audiveris at: {self.audiveris_path}")
-        logger.info(f"AUDIVERIS_PATH env var: {os.getenv('AUDIVERIS_PATH', 'NOT SET')}")
-        logger.info(f"PATH env var: {os.getenv('PATH', 'NOT SET')}")
-
-        # Check if /opt/Audiveris/bin exists and list contents
-        opt_dir = Path("/opt/Audiveris/bin")
-        if opt_dir.exists():
-            logger.info(f"Directory {opt_dir} exists. Contents:")
-            try:
-                for item in opt_dir.iterdir():
-                    logger.info(f"  - {item.name} (executable: {os.access(item, os.X_OK)})")
-            except Exception as e:
-                logger.error(f"Error listing directory: {e}")
-        else:
-            logger.error(f"Directory {opt_dir} does NOT exist")
-
-        # If it's an absolute path, check if file exists
-        if os.path.isabs(self.audiveris_path):
-            file_exists = os.path.isfile(self.audiveris_path)
-            is_executable = os.access(self.audiveris_path, os.X_OK) if file_exists else False
-            logger.info(f"File exists: {file_exists}, Is executable: {is_executable}")
-
-            if file_exists and is_executable:
-                logger.info(f"Audiveris found at: {self.audiveris_path}")
-                return
-            else:
-                logger.error(f"Audiveris not found at absolute path: {self.audiveris_path}")
-                raise AudiverisError(
-                    f"Audiveris not found at {self.audiveris_path}. "
-                    f"Please ensure the path is correct and the file is executable."
-                )
-
-        # Otherwise check in PATH
-        audiveris_executable = shutil.which(self.audiveris_path)
-        if not audiveris_executable:
-            logger.error("Audiveris not found in PATH")
-            raise AudiverisError(
-                f"Audiveris not found. Please install Audiveris and ensure it's in your PATH. "
-                f"Looking for: {self.audiveris_path}"
+        # Check if Docker is available
+        docker_path = shutil.which("docker")
+        if not docker_path:
+            logger.error("Docker not found")
+            raise OMRError(
+                "Docker not found. Audiveris requires Docker to be installed."
             )
 
-        logger.info(f"Audiveris found at: {audiveris_executable}")
+        # Check if Audiveris Docker image is available
+        try:
+            result = subprocess.run(
+                ["docker", "images", "-q", "jbarthelemy/audiveris:latest"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if not result.stdout.strip():
+                logger.warning("Audiveris Docker image not found, will pull on first use")
+        except Exception as e:
+            logger.warning(f"Could not check for Audiveris Docker image: {e}")
+
+        logger.info("Docker available for Audiveris")
 
     async def process_pdf(
         self,
@@ -99,7 +103,7 @@ class OMRProcessor:
         timeout: int = 300
     ) -> Tuple[Path, dict]:
         """
-        Process PDF file with Audiveris to generate MusicXML.
+        Process PDF file with selected OMR engine to generate MusicXML.
 
         Args:
             pdf_path: Path to input PDF file
@@ -110,7 +114,7 @@ class OMRProcessor:
             Tuple of (musicxml_path, metadata_dict)
 
         Raises:
-            AudiverisError: If processing fails
+            OMRError: If processing fails
             FileNotFoundError: If PDF file doesn't exist
             asyncio.TimeoutError: If processing exceeds timeout
         """
@@ -119,22 +123,135 @@ class OMRProcessor:
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Expected MusicXML output path
-        musicxml_path = output_dir / f"{pdf_path.stem}.mxl"
+        logger.info(f"Starting OMR processing with {self.engine} for: {pdf_path}")
 
-        logger.info(f"Starting OMR processing for: {pdf_path}")
+        if self.engine == "oemer":
+            return await self._process_with_oemer(pdf_path, output_dir, timeout)
+        elif self.engine == "audiveris":
+            return await self._process_with_audiveris(pdf_path, output_dir, timeout)
+        else:
+            raise OMRError(f"Unknown engine: {self.engine}")
 
+    async def _process_with_oemer(
+        self,
+        pdf_path: Path,
+        output_dir: Path,
+        timeout: int
+    ) -> Tuple[Path, dict]:
+        """
+        Process PDF with OEMER engine.
+
+        Args:
+            pdf_path: Path to input PDF file
+            output_dir: Directory for output files
+            timeout: Maximum processing time in seconds
+
+        Returns:
+            Tuple of (musicxml_path, metadata_dict)
+
+        Raises:
+            OMRError: If processing fails
+        """
         try:
-            # Run Audiveris CLI
-            # Command: audiveris -batch -export <pdf_file>
-            # This processes the PDF and exports to MusicXML (.mxl) format
-            process = await asyncio.create_subprocess_exec(
-                self.audiveris_path,
+            import oemer
+
+            # Expected MusicXML output path
+            musicxml_path = output_dir / f"{pdf_path.stem}.musicxml"
+
+            logger.info(f"Running OEMER on {pdf_path}")
+
+            # OEMER processes the PDF and generates MusicXML
+            # Run in executor to avoid blocking
+            def run_oemer():
+                try:
+                    # OEMER API: oemer.ommr(input_path, output_path)
+                    result = oemer.ommr(str(pdf_path), str(musicxml_path))
+                    return result
+                except Exception as e:
+                    raise OMRError(f"OEMER processing error: {str(e)}")
+
+            # Run with timeout
+            loop = asyncio.get_event_loop()
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, run_oemer),
+                timeout=timeout
+            )
+
+            # Verify output file was created
+            if not musicxml_path.exists():
+                raise OMRError(f"OEMER completed but output file not found: {musicxml_path}")
+
+            logger.info(f"OEMER processing completed: {musicxml_path}")
+
+            # Build metadata
+            metadata = {
+                "engine": "oemer",
+                "success": True,
+                "warnings": [],
+                "errors": []
+            }
+
+            return musicxml_path, metadata
+
+        except asyncio.TimeoutError:
+            logger.error(f"OEMER processing timed out after {timeout} seconds")
+            raise OMRError(
+                f"Processing timed out after {timeout} seconds. "
+                f"The PDF may be too large or complex."
+            )
+        except ImportError:
+            logger.error("OEMER not installed")
+            raise OMRError("OEMER not found. Please install with: pip install oemer")
+        except Exception as e:
+            logger.error(f"Unexpected error during OEMER processing: {e}")
+            raise OMRError(f"OEMER processing failed: {str(e)}")
+
+    async def _process_with_audiveris(
+        self,
+        pdf_path: Path,
+        output_dir: Path,
+        timeout: int
+    ) -> Tuple[Path, dict]:
+        """
+        Process PDF with Audiveris engine via Docker.
+
+        Args:
+            pdf_path: Path to input PDF file
+            output_dir: Directory for output files
+            timeout: Maximum processing time in seconds
+
+        Returns:
+            Tuple of (musicxml_path, metadata_dict)
+
+        Raises:
+            OMRError: If processing fails
+        """
+        try:
+            # Expected MusicXML output path
+            musicxml_path = output_dir / f"{pdf_path.stem}.mxl"
+
+            # Get absolute paths for Docker volume mounting
+            pdf_abs = pdf_path.absolute()
+            output_abs = output_dir.absolute()
+
+            logger.info(f"Running Audiveris via Docker on {pdf_path}")
+
+            # Docker command to run Audiveris
+            # Mount input PDF and output directory as volumes
+            docker_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{pdf_abs.parent}:/input:ro",
+                "-v", f"{output_abs}:/output",
+                "jbarthelemy/audiveris:latest",
                 "-batch",
                 "-export",
-                "-output",
-                str(output_dir),
-                str(pdf_path),
+                "-output", "/output",
+                f"/input/{pdf_abs.name}"
+            ]
+
+            # Run Docker command
+            process = await asyncio.create_subprocess_exec(
+                *docker_cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -149,7 +266,7 @@ class OMRProcessor:
             if process.returncode != 0:
                 error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
                 logger.error(f"Audiveris failed: {error_msg}")
-                raise AudiverisError(
+                raise OMRError(
                     f"Audiveris processing failed with code {process.returncode}: {error_msg}"
                 )
 
@@ -160,26 +277,27 @@ class OMRProcessor:
                 if alt_path.exists():
                     musicxml_path = alt_path
                 else:
-                    raise AudiverisError(
+                    raise OMRError(
                         f"Audiveris completed but output file not found: {musicxml_path}"
                     )
 
-            logger.info(f"OMR processing completed: {musicxml_path}")
+            logger.info(f"Audiveris processing completed: {musicxml_path}")
 
             # Parse metadata from output
             metadata = self._parse_audiveris_output(stdout.decode('utf-8'))
+            metadata["engine"] = "audiveris"
 
             return musicxml_path, metadata
 
         except asyncio.TimeoutError:
-            logger.error(f"OMR processing timed out after {timeout} seconds")
-            raise AudiverisError(
+            logger.error(f"Audiveris processing timed out after {timeout} seconds")
+            raise OMRError(
                 f"Processing timed out after {timeout} seconds. "
                 f"The PDF may be too large or complex."
             )
         except Exception as e:
-            logger.error(f"Unexpected error during OMR processing: {e}")
-            raise AudiverisError(f"OMR processing failed: {str(e)}")
+            logger.error(f"Unexpected error during Audiveris processing: {e}")
+            raise OMRError(f"Audiveris processing failed: {str(e)}")
 
     def _parse_audiveris_output(self, output: str) -> dict:
         """
@@ -304,14 +422,14 @@ class OMRProcessor:
 
 
 # Factory function for easy instantiation
-def create_omr_processor(audiveris_path: Optional[str] = None) -> OMRProcessor:
+def create_omr_processor(engine: OMREngine = "oemer") -> OMRProcessor:
     """
     Create and return an OMR processor instance.
 
     Args:
-        audiveris_path: Optional path to Audiveris executable
+        engine: Which OMR engine to use ("oemer" or "audiveris")
 
     Returns:
         OMRProcessor instance
     """
-    return OMRProcessor(audiveris_path=audiveris_path)
+    return OMRProcessor(engine=engine)

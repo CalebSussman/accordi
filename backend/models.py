@@ -27,6 +27,10 @@ class ProcessRequest(BaseModel):
         default="stradella_120_standard",
         description="Bass (left-hand) layout ID"
     )
+    omr_engine: str = Field(
+        default="oemer",
+        description="OMR engine to use: 'oemer' (better for photos/scans) or 'audiveris' (better for clean PDFs)"
+    )
     options: Optional[Dict[str, Any]] = Field(
         default={},
         description="Additional processing options"

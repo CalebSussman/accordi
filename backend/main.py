@@ -99,7 +99,9 @@ async def process_pdf_background(job_id: str, config: ProcessRequest):
         jobs[job_id].message = "Converting PDF to MusicXML..."
 
         # Step 1: OMR Processing
-        omr_processor = create_omr_processor()
+        # Use engine from config, default to oemer
+        engine = config.omr_engine if config.omr_engine in ["oemer", "audiveris"] else "oemer"
+        omr_processor = create_omr_processor(engine=engine)
         musicxml_path, omr_metadata = await omr_processor.process_pdf(
             pdf_path,
             output_dir
