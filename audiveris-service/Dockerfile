@@ -1,24 +1,13 @@
-FROM eclipse-temurin:17-jdk-jammy
+FROM jbarthelemy/audiveris:latest
 
-# Install system dependencies
+# Install Python runtime for the FastAPI wrapper
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     curl \
-    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Audiveris 5.3.1 from release distribution
-ENV AUDIVERIS_VERSION=5.3.1
-ENV AUDIVERIS_HOME=/opt/Audiveris
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    unzip \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -L "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/audiveris-${AUDIVERIS_VERSION}.zip" -o /tmp/audiveris.zip \
-    && unzip /tmp/audiveris.zip -d /opt \
-    && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
-    && rm -rf /tmp/audiveris.zip
-
+ENV AUDIVERIS_HOME=/opt/audiveris
 ENV AUDIVERIS_PATH=${AUDIVERIS_HOME}/bin/Audiveris
 
 WORKDIR /app
