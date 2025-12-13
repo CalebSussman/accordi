@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && git clone --depth 1 https://github.com/Audiveris/audiveris.git /tmp/audiveris \
     && cd /tmp/audiveris \
-    && git fetch --depth 1 origin ${AUDIVERIS_VERSION} || true \
-    && git checkout ${AUDIVERIS_VERSION} || git checkout tags/${AUDIVERIS_VERSION} || true \
-    && test -f pom.xml \
+    && git fetch origin --tags \
+    && git checkout refs/tags/${AUDIVERIS_VERSION} || git checkout ${AUDIVERIS_VERSION} || true \
+    && test -f pom.xml || (echo \"pom.xml not found after checkout\" && exit 1) \
     && mvn -DskipTests package \
     && unzip target/distributions/audiveris-${AUDIVERIS_VERSION}.zip -d /opt \
     && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
