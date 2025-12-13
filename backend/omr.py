@@ -108,7 +108,7 @@ class OMRProcessor:
         self,
         pdf_path: Path,
         output_dir: Path,
-        timeout: int = 300
+        timeout: int = 600
     ) -> Tuple[Path, dict]:
         """
         Process PDF file with selected OMR engine to generate MusicXML.
@@ -116,7 +116,8 @@ class OMRProcessor:
         Args:
             pdf_path: Path to input PDF file
             output_dir: Directory for output files
-            timeout: Maximum processing time in seconds (default: 5 minutes)
+            timeout: Maximum processing time in seconds (default: 10 minutes)
+                    OEMER typically takes 3-5 minutes with GPU, longer without
 
         Returns:
             Tuple of (musicxml_path, metadata_dict)
@@ -186,10 +187,8 @@ class OMRProcessor:
 
             logger.info(f"Converted PDF to image: {image_path}")
 
-            # OEMER generates filename based on input
-            musicxml_path = output_dir / f"{pdf_path.stem}.musicxml"
-
             logger.info(f"Running OEMER CLI on {image_path}")
+            logger.info(f"OEMER timeout set to {timeout} seconds")
 
             # Run OEMER as command-line tool
             # Command: oemer <input_image> -o <output_dir>
@@ -201,11 +200,29 @@ class OMRProcessor:
                 stderr=asyncio.subprocess.PIPE
             )
 
+            logger.info(f"OEMER process started, waiting for completion...")
+
             # Wait for completion with timeout
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
-            )
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=timeout
+                )
+                logger.info(f"OEMER process completed with return code: {process.returncode}")
+            except asyncio.TimeoutError:
+                logger.error(f"OEMER process timed out after {timeout} seconds")
+                process.kill()
+                await process.wait()
+                # Clean up temporary image
+                if image_path.exists():
+                    image_path.unlink()
+                raise
+
+            # Log OEMER output for debugging
+            if stdout:
+                logger.info(f"OEMER stdout: {stdout.decode('utf-8')[:500]}")
+            if stderr:
+                logger.warning(f"OEMER stderr: {stderr.decode('utf-8')[:500]}")
 
             # Clean up temporary image
             if image_path.exists():
@@ -219,9 +236,23 @@ class OMRProcessor:
                     f"OEMER processing failed with code {process.returncode}: {error_msg}"
                 )
 
-            # Verify output file was created
+            # Find the generated MusicXML file
+            # OEMER generates filename based on input image name
+            musicxml_path = output_dir / f"{image_path.stem}.musicxml"
+
+            # Also check for .xml extension as fallback
             if not musicxml_path.exists():
-                raise OMRError(f"OEMER completed but output file not found: {musicxml_path}")
+                xml_path = output_dir / f"{image_path.stem}.xml"
+                if xml_path.exists():
+                    musicxml_path = xml_path
+                else:
+                    # List all files in output directory for debugging
+                    output_files = list(output_dir.glob("*"))
+                    logger.error(f"OEMER output files: {[f.name for f in output_files]}")
+                    raise OMRError(
+                        f"OEMER completed but output file not found. "
+                        f"Expected: {musicxml_path.name}, Files in {output_dir}: {[f.name for f in output_files]}"
+                    )
 
             logger.info(f"OEMER processing completed: {musicxml_path}")
 
