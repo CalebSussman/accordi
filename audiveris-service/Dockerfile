@@ -8,17 +8,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Audiveris 5.3.1 from source
+# Build and install Audiveris 5.3.1 from source archive
 ENV AUDIVERIS_VERSION=5.3.1
 ENV AUDIVERIS_HOME=/opt/Audiveris
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     maven \
     && rm -rf /var/lib/apt/lists/* \
-    && git clone --branch ${AUDIVERIS_VERSION} --depth 1 https://github.com/Audiveris/audiveris.git /tmp/audiveris \
+    && curl -L "https://github.com/Audiveris/audiveris/archive/refs/tags/${AUDIVERIS_VERSION}.zip" -o /tmp/audiveris-src.zip \
+    && unzip /tmp/audiveris-src.zip -d /tmp \
+    && mv /tmp/audiveris-${AUDIVERIS_VERSION} /tmp/audiveris \
+    && rm /tmp/audiveris-src.zip \
     && cd /tmp/audiveris \
-    && git submodule update --init --recursive \
-    && test -f pom.xml || (echo \"pom.xml not found after checkout\" && exit 1) \
+    && test -f pom.xml || (echo \"pom.xml not found after extracting archive\" && ls -la && exit 1) \
     && mvn -DskipTests package \
     && unzip target/distributions/audiveris-${AUDIVERIS_VERSION}.zip -d /opt \
     && mv /opt/audiveris-${AUDIVERIS_VERSION} ${AUDIVERIS_HOME} \
