@@ -61,6 +61,7 @@ const elements = {
     // Settings
     trebleLayoutSelect: document.getElementById('trebleLayoutSelect'),
     bassLayoutSelect: document.getElementById('bassLayoutSelect'),
+    omrEngineSelect: document.getElementById('omrEngineSelect'),
 
     // Error
     errorToast: document.getElementById('errorToast'),
@@ -284,15 +285,17 @@ async function handleFile(file) {
         // Save job ID
         localStorage.setItem('lastJobId', uploadResult.job_id);
 
-        // Get selected layouts
+        // Get selected layouts and OMR engine
         const trebleLayout = elements.trebleLayoutSelect?.value || 'c_system_5row';
         const bassLayout = elements.bassLayoutSelect?.value || 'stradella_120';
+        const omrEngine = elements.omrEngineSelect?.value || 'oemer';
 
         // Start processing
-        updateProcessingStatus('Starting OMR processing...', 10);
+        updateProcessingStatus(`Starting OMR processing (${omrEngine})...`, 10);
         await API.startProcessing(uploadResult.job_id, {
             treble_layout: { preset: trebleLayout },
-            bass_layout: { preset: bassLayout }
+            bass_layout: { preset: bassLayout },
+            omr_engine: omrEngine
         });
 
         // Poll for completion

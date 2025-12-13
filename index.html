@@ -70,7 +70,7 @@
                 </select>
             </div>
 
-            <div>
+            <div style="margin-bottom: var(--spacing-lg);">
                 <label for="bassLayoutSelect" style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">Bass Layout</label>
                 <select id="bassLayoutSelect">
                     <option value="stradella_120">Stradella 120-Bass</option>
@@ -79,6 +79,18 @@
                     <option value="freebass_c_5row">Free-Bass C-System</option>
                     <option value="freebass_b_5row">Free-Bass B-System</option>
                 </select>
+            </div>
+
+            <!-- OMR Engine Selection -->
+            <div>
+                <label for="omrEngineSelect" style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">OMR Engine</label>
+                <select id="omrEngineSelect">
+                    <option value="oemer" selected>OEMER (Better for photos/scans)</option>
+                    <option value="audiveris">Audiveris (Better for clean PDFs)</option>
+                </select>
+                <div style="margin-top: var(--spacing-xs); font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">
+                    Select the optical music recognition engine for PDF processing
+                </div>
             </div>
         </div>
     </nav>

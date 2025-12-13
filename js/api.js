@@ -30,17 +30,20 @@ export async function uploadPDF(file) {
 /**
  * Start processing for uploaded file
  * @param {string} jobId - Job ID from upload
- * @param {Object} options - Processing options
+ * @param {Object} config - Processing configuration (treble_layout, bass_layout, omr_engine, options)
  * @returns {Promise<{job_id: string, status: string, progress: number}>}
  */
-export async function startProcessing(jobId, options = {}) {
+export async function startProcessing(jobId, config = {}) {
     const response = await fetch(`${API_BASE_URL}/process/${jobId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            options: options
+            treble_layout: config.treble_layout?.preset || 'c_system_5row_standard',
+            bass_layout: config.bass_layout?.preset || 'stradella_120_standard',
+            omr_engine: config.omr_engine || 'oemer',
+            options: config.options || {}
         })
     });
 
