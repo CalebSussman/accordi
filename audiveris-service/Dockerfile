@@ -57,11 +57,11 @@ ENV AUDIVERIS_PATH=${AUDIVERIS_HOME}/bin/Audiveris
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY audiveris-service/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application
-COPY main.py .
+COPY audiveris-service/main.py .
 
 # Create directories used by the service
 RUN mkdir -p /tmp/uploads /tmp/output
