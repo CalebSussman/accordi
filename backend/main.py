@@ -542,6 +542,9 @@ async def upload_musicxml(file: UploadFile = File(...)) -> Dict:
     Raises:
         HTTPException: If file is not MusicXML or too large
     """
+    import zipfile
+    import io
+
     # Validate file type
     if not (file.filename.endswith('.mxl') or file.filename.endswith('.musicxml') or file.filename.endswith('.xml')):
         raise HTTPException(
@@ -566,11 +569,39 @@ async def upload_musicxml(file: UploadFile = File(...)) -> Dict:
     output_dir = PROCESSED_DIR / job_id
     output_dir.mkdir(exist_ok=True)
 
-    # Save MusicXML file
-    # Normalize extension to .musicxml for consistency
+    # Handle .mxl files (compressed MusicXML)
     musicxml_path = output_dir / f"{job_id}.musicxml"
-    async with aiofiles.open(musicxml_path, 'wb') as f:
-        await f.write(temp_file)
+
+    if file.filename.endswith('.mxl'):
+        # Extract the MusicXML from the compressed archive
+        try:
+            with zipfile.ZipFile(io.BytesIO(temp_file)) as zip_file:
+                # .mxl files contain a file with .xml extension inside
+                xml_files = [name for name in zip_file.namelist() if name.endswith('.xml') and not name.startswith('META-INF')]
+
+                if not xml_files:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid .mxl file: no MusicXML content found"
+                    )
+
+                # Extract the first XML file (usually the score)
+                xml_content = zip_file.read(xml_files[0])
+
+                async with aiofiles.open(musicxml_path, 'wb') as f:
+                    await f.write(xml_content)
+
+                logger.info(f"Extracted MusicXML from .mxl: {xml_files[0]}")
+
+        except zipfile.BadZipFile:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid .mxl file: not a valid ZIP archive"
+            )
+    else:
+        # Plain .musicxml or .xml file
+        async with aiofiles.open(musicxml_path, 'wb') as f:
+            await f.write(temp_file)
 
     logger.info(f"MusicXML uploaded: job_id={job_id}, size={file_size} bytes")
 
