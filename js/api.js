@@ -191,6 +191,28 @@ export function getMusicXMLUrl(jobId) {
 }
 
 /**
+ * Upload MusicXML file directly (bypasses OMR processing)
+ * @param {File} file - MusicXML file (.mxl, .musicxml, .xml)
+ * @returns {Promise<{success: boolean, job_id: string, musicxml_url: string}>}
+ */
+export async function uploadMusicXML(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/upload_musicxml`, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'MusicXML upload failed');
+    }
+
+    return await response.json();
+}
+
+/**
  * Health check
  * @returns {Promise<{status: string}>}
  */

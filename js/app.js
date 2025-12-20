@@ -231,20 +231,36 @@ async function handleMusicXMLSelect(e) {
             // Hide empty state, show processing
             elements.emptyState?.classList.add('hidden');
             elements.processingOverlay?.classList.remove('hidden');
-            updateProcessingStatus('Loading MusicXML file...', 50);
+            updateProcessingStatus('Uploading MusicXML file...', 10);
 
-            // Read file as text
-            const fileText = await file.text();
+            // Upload to backend
+            const uploadResult = await API.uploadMusicXML(file);
+            console.log('MusicXML upload successful:', uploadResult);
 
-            updateProcessingStatus('Rendering score...', 75);
+            state.currentJobId = uploadResult.job_id;
+            localStorage.setItem('lastJobId', uploadResult.job_id);
 
-            // Render directly with OSMD
-            await renderScoreFromString(fileText);
+            updateProcessingStatus('Fetching MusicXML from server...', 50);
+
+            // Fetch the MusicXML from the server
+            const musicxmlUrl = API.getMusicXMLUrl(uploadResult.job_id);
+            const response = await fetch(musicxmlUrl);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch MusicXML: ${response.statusText}`);
+            }
+
+            const musicXmlText = await response.text();
+
+            updateProcessingStatus('Rendering score...', 80);
+
+            // Render with OSMD
+            await renderScoreFromString(musicXmlText);
 
             // Hide processing overlay
             elements.processingOverlay?.classList.add('hidden');
 
-            console.log('MusicXML rendered successfully');
+            console.log('MusicXML rendered successfully from backend');
         } catch (error) {
             console.error('Error loading MusicXML:', error);
             showError(`Failed to load MusicXML: ${error.message}`);
