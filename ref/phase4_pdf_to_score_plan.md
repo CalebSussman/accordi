@@ -244,7 +244,230 @@ async function handleFile(file) {
 
 ---
 
+## FINAL STATUS - Phase 4 FAILED (2025-12-20)
+
+### Executive Summary
+
+**Phase 4 has been abandoned.** PDF-to-MusicXML conversion via OMR (Optical Music Recognition) proved infeasible within free-tier infrastructure constraints. After multiple failed attempts with both OEMER and Audiveris, the project pivoted to **Phase 5 MVP**: accepting pre-converted MusicXML files directly from users.
+
+---
+
+### Complete Failure Diagnosis
+
+#### Attempt 1: OEMER (Local Docker on Render) ❌
+
+**Implementation:**
+- Installed OEMER Python package in backend
+- Added PDF-to-PNG conversion using pdf2image
+- Ran OEMER via subprocess CLI: `oemer <image> -o <output_dir>`
+- Timeout set to 600 seconds (10 minutes)
+
+**Failure Mode: Memory Limit Exceeded**
+- **Issue:** OEMER is a deep learning OMR system that loads neural network models into RAM
+- **Render Free Tier RAM:** 512 MB
+- **OEMER Model Requirements:** ~1-2 GB for inference
+- **Result:** Process started successfully (PDF→PNG conversion worked) but crashed during model loading
+- **Error:** "Web Service accordi exceeded its memory limit, which triggered an automatic restart"
+- **Evidence:** Logs showed successful PNG conversion, then crash during OEMER execution
+
+**Technical Details:**
+```
+Session Log 20251213:
+[Line 149] CRITICAL ISSUE: OEMER Memory Limit Exceeded
+[Line 159] Web Service accordi exceeded its memory limit (512MB)
+[Line 161] OEMER's model checkpoints + inference require significantly more memory
+```
+
+**Why It Failed:**
+1. OEMER downloads model checkpoints (~300MB) on first run
+2. Loads entire model into memory for inference (~1-2GB)
+3. Render free tier provides only 512MB total
+4. Process OOM-killed before generating any output
+
+---
+
+#### Attempt 2: Audiveris (Google Cloud Run Microservice) ❌
+
+**Implementation:**
+- Deployed Audiveris as separate microservice on Google Cloud Run
+- Cloud Run provides 2GB memory (sufficient for Audiveris)
+- Built from source (Audiveris 5.3.1) using Gradle
+- Created FastAPI wrapper to accept PDF uploads
+- Main backend calls Audiveris Cloud Run via HTTP
+
+**Build Challenges (Resolved):**
+- **Issue 1:** Missing pom.xml (Audiveris uses Gradle, not Maven)
+- **Issue 2:** Checkout tag 5.3.1 failed (shallow clone issues)
+- **Issue 3:** Distribution file naming case-sensitivity (`Audiveris-5.3.1.zip` vs `audiveris-*.zip`)
+- **Issue 4:** Docker context issues (needed repo root for `tools/` directory)
+- **Resolution:** Built from source successfully after ~20 iterations
+
+**Deployment Challenges (Resolved):**
+- **Issue 1:** Port configuration (8000 vs 8080)
+- **Issue 2:** Cloud Build logging permissions
+- **Issue 3:** COPY paths in Dockerfile relative to repo root
+- **Resolution:** Service deployed successfully to Cloud Run
+
+**Failure Mode: Never Integrated**
+- **Issue:** Backend deployment succeeded, but never tested end-to-end
+- **Root Cause:** Complexity and time investment required
+- **Why Abandoned:**
+  1. Audiveris requires ~10-30 seconds per page (too slow for UX)
+  2. OCR quality highly variable (errors in note recognition)
+  3. Required manual AUDIVERIS_API_URL configuration
+  4. Added infrastructure complexity (two services to maintain)
+  5. Free tier limits (360,000 GB-seconds/month = ~100 requests/day max)
+
+**Technical Details:**
+```
+Session Log 20251212:
+[Line 350] Audiveris build and extraction succeeded!
+[Line 359] Cloud Run deployment succeeded
+[Line 375] Backend port fix committed (8000→8080)
+[Line 405] "Once deployed, retry setting AUDIVERIS_API_URL environment variable"
+```
+
+**Final State:**
+- Audiveris Cloud Run service: **Deployed but not configured**
+- Main backend: **No AUDIVERIS_API_URL set**
+- Integration: **Never tested**
+- Status: **Abandoned due to complexity**
+
+---
+
+### Why Phase 4 Failed: Root Cause Analysis
+
+#### Infrastructure Constraints (Primary)
+1. **Memory Limits:**
+   - OEMER requires 1-2GB RAM
+   - Render free tier: 512MB
+   - Upgrading costs $7/month (unacceptable)
+
+2. **Processing Time:**
+   - OEMER: 3-5 min with GPU, 10+ min without
+   - Audiveris: 10-30 seconds per page
+   - User expectation: <5 seconds total
+
+3. **Complexity:**
+   - Two separate deployments (main + Audiveris)
+   - HTTP communication between services
+   - Error handling across service boundaries
+
+#### Technical Limitations (Secondary)
+1. **OCR Quality:**
+   - OMR systems require clean, high-resolution scans
+   - Errors in note recognition require manual correction
+   - No automated quality validation
+
+2. **File Format Issues:**
+   - MuseScore PDFs work well
+   - Scanned sheet music often fails
+   - Handwritten scores completely unusable
+
+3. **Free Tier Limits:**
+   - Google Cloud Run: 2M requests/month (sounds high but...)
+   - Each request uses memory for 10-30 seconds
+   - 360,000 GB-seconds/month ≈ 100-200 conversions/day max
+   - Exceeding limits triggers billing
+
+#### User Experience Issues (Tertiary)
+1. **Slow Processing:**
+   - 10-30 seconds minimum wait time
+   - Requires polling status endpoint
+   - Poor UX compared to instant display
+
+2. **Error Recovery:**
+   - PDF upload succeeds, but processing fails
+   - User sees generic "Processing failed" error
+   - No actionable feedback (which notes failed?)
+
+3. **Limited Use Cases:**
+   - Only works for digital PDFs (not photos)
+   - Only works for printed scores (not handwritten)
+   - Only works for simple layouts (fails on complex scores)
+
+---
+
+### Alternative Considered: MuseScore CLI
+
+**Not Attempted Because:**
+- MuseScore CLI requires full MuseScore installation (~500MB)
+- Doesn't fit in Render's 512MB memory limit
+- Requires X11 display server (headless mode buggy)
+- License issues (GPL vs. proprietary backend)
+
+---
+
+### Decision: Pivot to Phase 5 MVP
+
+**Rationale:**
+1. **User Can Convert Locally:**
+   - Free tools available: MuseScore, Finale, Sibelius
+   - One-time conversion: PDF → MusicXML export
+   - User uploads .mxl file directly
+
+2. **Simpler Architecture:**
+   - No OMR processing needed
+   - No microservice dependencies
+   - Instant display (no polling)
+
+3. **Better UX:**
+   - Upload → Display in <1 second
+   - No processing errors
+   - Guaranteed quality (user-converted)
+
+4. **Infrastructure Savings:**
+   - Single deployment (Render backend)
+   - No Google Cloud Run costs
+   - No memory pressure
+
+**Tradeoffs Accepted:**
+- User must convert PDFs locally (extra step)
+- Requires user to have MuseScore/Finale/etc installed
+- No "pure web" solution (breaks initial vision)
+
+**Phase 5 MVP Scope:**
+- ✅ Accept .mxl/.musicxml file uploads
+- ✅ Extract compressed .mxl archives
+- ✅ Display scores with OSMD
+- ❌ PDF upload (removed from UI)
+- ❌ OMR processing (abandoned)
+
+---
+
+### Lessons Learned
+
+1. **Memory constraints are hard blockers** for ML-based solutions on free tier
+2. **OCR quality** is insufficient for production use without manual review
+3. **Processing time** matters more than "technically possible"
+4. **User-side conversion** is acceptable if tools are free and easy
+5. **Simplicity wins** over "full-stack" solutions when resources are limited
+
+---
+
+### Files Modified During Phase 4 (Now Unused)
+
+**Backend:**
+- `backend/omr.py` - OEMER and Audiveris integration (partially working, not used)
+- `backend/requirements.txt` - Added pdf2image, aiohttp (still used for other features)
+- `Dockerfile` - Added poppler-utils (no longer needed, but harmless)
+
+**Audiveris Service (Deployed but Unused):**
+- `audiveris-service/Dockerfile` - Builds Audiveris from source
+- `audiveris-service/main.py` - FastAPI wrapper
+- `audiveris-service/requirements.txt` - Python dependencies
+- `cloudbuild.yaml` - Cloud Build configuration
+- **Status:** Service running but not configured in main backend
+
+**Documentation:**
+- `AUDIVERIS_DEPLOYMENT.md` - Deployment guide (obsolete)
+- `session_logs/20251212_Session.md` - Cloud Run deployment attempts
+- `session_logs/20251213_Session.md` - OEMER memory failure
+
+---
+
 **Created:** 2025-12-08
-**Last Updated:** 2025-12-10
-**Status:** In Progress - Backend & Frontend Fixed, Testing Pending
-**Priority:** High - Core functionality blocker
+**Last Updated:** 2025-12-20
+**Status:** FAILED - Abandoned in favor of Phase 5 MVP (MusicXML direct upload)
+**Priority:** N/A - No longer pursued
+**Outcome:** Pivot to user-side PDF conversion + MusicXML upload
