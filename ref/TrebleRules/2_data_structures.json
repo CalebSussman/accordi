@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "artifact_type": "schema_definitions",
+    "engine_version": "3.2.1",
+    "description": "Core data structures. Revisions: Explicit geometric definitions and bellows state logic."
+  },
+  "schemas": {
+    "1_INPUT_MODEL": {
+      "description": "The raw musical stream to be fingered.",
+      "structure": {
+        "score_meta": {
+          "title": "String",
+          "initial_bellows_direction": "out",
+          "tempo_bpm": "Number"
+        },
+        "events": [
+          {
+            "id": "String (UUID)",
+            "timestamp_ms": "Number",
+            "duration_ms": "Number",
+            "articulation": "legato | staccato | tenuto | none",
+            "bellows_state": "push | pull | null (Event-specific override; null = use previous state)",
+            "notes": [
+              {
+                "pitch_midi": "Number (0-127)",
+                "tied_from_prev": "Boolean (CRITICAL: Triggers H1_POLY_LOCKED_FINGER)",
+                "volume_velocity": "Number"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "2_NODE_STATE_MODEL": {
+      "description": "A single node in the pathfinding graph.",
+      "structure": {
+        "id": "String (Hash: current_buttons + held_notes)",
+        "parent_id": "String",
+        "g_score": "Number (Accumulated Cost)",
+        "h_score": "Number (Heuristic Cost)",
+        "f_score": "Number (Total)",
+        "time_index": "Number",
+        "hand_geometry": {
+          "wrist_angle": "Number (DIAGNOSTIC ONLY: Not currently used in cost function)",
+          "centroid_row": "Number (Avg row of active fingers)",
+          "centroid_col": "Number (Avg col of active fingers)",
+          "span_width": "Number (Max Euclidean distance between any two active fingers in mm)"
+        },
+        "fingers": [
+          {
+            "index": "1 (Thumb)",
+            "status": "free | pressing | locked_holding",
+            "current_button": {
+              "row": "Number (1-5)",
+              "col": "Number (Abstract Column Index)",
+              "midi": "Number"
+            },
+            "frames_held": "Number"
+          }
+        ]
+      }
+    },
+    "3_OUTPUT_MODEL": {
+      "description": "The solved path with debugging context.",
+      "structure": {
+        "solution_meta": {
+          "total_cost": "Number",
+          "algorithm": "A_Star_Dmitriev"
+        },
+        "fingering_sequence": [
+          {
+            "event_id": "String",
+            "timestamp": "Number",
+            "active_bellows_state": "push | pull (Resolved state for debugging H3_BELLOWS)",
+            "hand_shape": {
+              "centroid_row": "Number",
+              "centroid_col": "Number"
+            },
+            "assignments": [
+              {
+                "midi_note": "Number",
+                "assigned_finger": "Number (1-5)",
+                "button_location": {
+                  "row": "Number",
+                  "column": "Number",
+                  "color": "String"
+                },
+                "is_crossing": "Boolean (Result of crossing check)"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
