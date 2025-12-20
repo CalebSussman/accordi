@@ -415,11 +415,27 @@ async function renderScoreFromString(musicXmlString) {
         const osmd = new OpenSheetMusicDisplay(osmdContainer, {
             autoResize: true,
             backend: 'svg',
-            drawTitle: true
+            drawTitle: true,
+            drawComposer: true,
+            drawPartNames: true,
+            drawCredits: true,
+            drawingParameters: 'compacttight',
+            // Enable cursor following for future playback
+            drawCursors: true,
+            followCursor: true
         });
 
-        // Load and render from string
+        // Load the MusicXML
         await osmd.load(musicXmlString);
+
+        // Configure rendering rules BEFORE rendering
+        // This allows us to control note names, colors, etc.
+        if (osmd.EngravingRules) {
+            // Note: These will be controlled by view settings
+            // osmd.EngravingRules.RenderNoteNames = false; // Set by view controls
+        }
+
+        // Initial render
         osmd.render();
 
         // Initialize score controls (playback, view menu)

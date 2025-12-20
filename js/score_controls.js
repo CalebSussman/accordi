@@ -300,16 +300,37 @@ function applyFontSettings() {
  */
 function applyNoteColor() {
     const container = document.getElementById('osmd-container');
-    if (container) {
-        container.style.setProperty('--note-color', viewSettings.noteColor);
-    }
+    if (!container) return;
 
-    // Apply to SVG elements
-    const noteheads = container?.querySelectorAll('.vf-notehead, .vf-stem, .vf-beam');
-    noteheads?.forEach(el => {
-        el.style.fill = viewSettings.noteColor;
-        el.style.stroke = viewSettings.noteColor;
-    });
+    // Set CSS variable for theming
+    container.style.setProperty('--note-color', viewSettings.noteColor);
+
+    // Find all SVG note elements and apply color
+    // OSMD uses VexFlow, which creates paths for noteheads, stems, beams
+    setTimeout(() => {
+        const svgElements = container.querySelectorAll('svg');
+
+        svgElements.forEach(svg => {
+            // Note heads (filled circles/ovals)
+            const noteheads = svg.querySelectorAll('path[fill]:not([fill="none"])');
+            noteheads.forEach(el => {
+                // Preserve original fill for non-black notes
+                const fill = el.getAttribute('fill');
+                if (fill === '#000000' || fill === 'black' || fill === 'rgb(0, 0, 0)' || fill === '#000') {
+                    el.setAttribute('fill', viewSettings.noteColor);
+                }
+            });
+
+            // Stems and beams (stroked paths)
+            const stems = svg.querySelectorAll('path[stroke]:not([stroke="none"])');
+            stems.forEach(el => {
+                const stroke = el.getAttribute('stroke');
+                if (stroke === '#000000' || stroke === 'black' || stroke === 'rgb(0, 0, 0)' || stroke === '#000') {
+                    el.setAttribute('stroke', viewSettings.noteColor);
+                }
+            });
+        });
+    }, 100); // Small delay to ensure SVG is rendered
 }
 
 /**
@@ -330,11 +351,20 @@ function applyZoom() {
  * Apply note names setting
  */
 function applyNoteNames() {
-    if (!osmdInstance) return;
+    if (!osmdInstance || !osmdInstance.EngravingRules) return;
 
-    // TODO: OSMD EngravingRules.RenderNoteNames
-    // Requires re-render
-    console.log('Note names:', viewSettings.showNoteNames ? 'shown' : 'hidden');
+    try {
+        // OSMD has a built-in option for note names!
+        // ColoringMode: 0 = off, 1 = note names
+        osmdInstance.EngravingRules.ColoringMode = viewSettings.showNoteNames ? 1 : 0;
+
+        // Re-render to apply changes
+        osmdInstance.render();
+
+        console.log('Note names:', viewSettings.showNoteNames ? 'shown' : 'hidden');
+    } catch (e) {
+        console.error('Error applying note names:', e);
+    }
 }
 
 /**
