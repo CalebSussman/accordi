@@ -5,6 +5,7 @@
 
 import * as API from './api.js';
 import { renderTrebleKeyboard, renderBassKeyboard, addButtonClickHandlers } from './accordion_svg.js';
+import { initializeScoreControls, hideControls, resetControls } from './score_controls.js';
 
 // OSMD is loaded from CDN in index.html
 const { OpenSheetMusicDisplay } = window.opensheetmusicdisplay;
@@ -420,6 +421,9 @@ async function renderScoreFromString(musicXmlString) {
         // Load and render from string
         await osmd.load(musicXmlString);
         osmd.render();
+
+        // Initialize score controls (playback, view menu)
+        initializeScoreControls(osmd);
 
         console.log('Score rendered successfully from string');
     } catch (error) {
