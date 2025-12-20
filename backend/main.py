@@ -426,7 +426,12 @@ async def get_musicxml(job_id: str) -> FileResponse:
     Raises:
         HTTPException: If file not found
     """
-    xml_path = PROCESSED_DIR / f"{job_id}.musicxml"
+    # Try job-specific directory first (new structure)
+    xml_path = PROCESSED_DIR / job_id / f"{job_id}.musicxml"
+
+    # Fallback to old structure
+    if not xml_path.exists():
+        xml_path = PROCESSED_DIR / f"{job_id}.musicxml"
 
     if not xml_path.exists():
         raise HTTPException(
@@ -436,7 +441,7 @@ async def get_musicxml(job_id: str) -> FileResponse:
 
     return FileResponse(
         xml_path,
-        media_type="application/xml",
+        media_type="application/vnd.recordare.musicxml+xml",
         filename=f"akkordio_{job_id}.musicxml"
     )
 
@@ -518,6 +523,76 @@ async def generate_custom_layout(config: Dict) -> Dict:
             status_code=400,
             detail=f"Invalid layout configuration: {str(e)}"
         )
+
+
+@app.post("/upload_musicxml")
+async def upload_musicxml(file: UploadFile = File(...)) -> Dict:
+    """
+    Accept MusicXML file upload and return it for OSMD display.
+
+    This is a simplified MVP endpoint that bypasses OMR processing.
+    User provides pre-converted MusicXML files.
+
+    Args:
+        file: MusicXML file (.mxl or .musicxml)
+
+    Returns:
+        Dict with job_id and musicxml_url for frontend
+
+    Raises:
+        HTTPException: If file is not MusicXML or too large
+    """
+    # Validate file type
+    if not (file.filename.endswith('.mxl') or file.filename.endswith('.musicxml') or file.filename.endswith('.xml')):
+        raise HTTPException(
+            status_code=400,
+            detail="Only MusicXML files (.mxl, .musicxml, .xml) are accepted"
+        )
+
+    # Validate file size (5MB max for MusicXML)
+    temp_file = await file.read()
+    file_size = len(temp_file)
+
+    if file_size > 5 * 1024 * 1024:  # 5MB
+        raise HTTPException(
+            status_code=400,
+            detail="File size exceeds 5MB limit"
+        )
+
+    # Generate unique job ID
+    job_id = str(uuid.uuid4())
+
+    # Create output directory
+    output_dir = PROCESSED_DIR / job_id
+    output_dir.mkdir(exist_ok=True)
+
+    # Save MusicXML file
+    # Normalize extension to .musicxml for consistency
+    musicxml_path = output_dir / f"{job_id}.musicxml"
+    async with aiofiles.open(musicxml_path, 'wb') as f:
+        await f.write(temp_file)
+
+    logger.info(f"MusicXML uploaded: job_id={job_id}, size={file_size} bytes")
+
+    # Initialize job status (for compatibility with existing frontend)
+    jobs[job_id] = JobStatus(
+        job_id=job_id,
+        status="completed",  # Immediate completion since no processing needed
+        progress=100,
+        message="MusicXML file uploaded successfully",
+        created_at=datetime.utcnow(),
+        completed_at=datetime.utcnow()
+    )
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "filename": file.filename,
+        "size": file_size,
+        "status": "completed",
+        "musicxml_url": f"/musicxml/{job_id}",
+        "message": "MusicXML ready for display"
+    }
 
 
 if __name__ == "__main__":
