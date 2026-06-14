@@ -35,6 +35,27 @@ class BassMapper:
 
         logger.info(f"Bass mapper initialized for {self.system}")
 
+    def _button_position(self, button: Dict) -> Dict:
+        """Return a serializable button position with enough data for UI/debugging."""
+        return {
+            "row": button["row"],
+            "column": button["column"],
+            "midi": button.get("midi"),
+            "note": button.get("note"),
+            "label": button.get("label"),
+            "type": button.get("type")
+        }
+
+    def _button_at(self, position: Dict) -> Optional[Dict]:
+        """Find a generated layout button by row/column."""
+        for button in self.buttons:
+            if (
+                button.get("row") == position.get("row")
+                and button.get("column") == position.get("column")
+            ):
+                return button
+        return None
+
     def map_single_note(self, midi: int) -> List[Dict]:
         """
         Map a single bass note to button positions.
@@ -78,13 +99,19 @@ class BassMapper:
             logger.warning("map_chord_stradella called on non-Stradella system")
             return None
 
+        supported_types = {"major", "minor", "seventh", "diminished"}
+        if chord_type not in supported_types:
+            logger.warning(f"Unsupported Stradella chord type: {chord_type}")
+            return None
+
         # Build chord key
         chord_key = f"{root}_{chord_type}"
 
         if chord_key in self.chord_index:
             position = self.chord_index[chord_key]
             logger.debug(f"Chord {chord_key} mapped to {position}")
-            return position
+            button = self._button_at(position)
+            return self._button_position(button) if button else position
 
         # Try enharmonic equivalents
         enharmonic_map = {
@@ -101,7 +128,8 @@ class BassMapper:
             if alt_key in self.chord_index:
                 position = self.chord_index[alt_key]
                 logger.debug(f"Chord {chord_key} mapped via enharmonic {alt_key}")
-                return position
+                button = self._button_at(position)
+                return self._button_position(button) if button else position
 
         logger.warning(f"Chord {chord_key} not found in Stradella layout")
         return None
@@ -160,7 +188,13 @@ class BassMapper:
 
             if not root:
                 logger.error(f"Chord event missing root: {event}")
-                return {**event, "mapping_complete": False}
+                return {
+                    **event,
+                    "button_position": None,
+                    "chord_button": None,
+                    "mapping_complete": False,
+                    "error": "Chord event is missing root"
+                }
 
             button_position = self.map_chord_stradella(root, chord_type)
 
@@ -168,11 +202,14 @@ class BassMapper:
                 return {
                     **event,
                     "button_position": button_position,
+                    "chord_button": button_position,
                     "mapping_complete": True
                 }
             else:
                 return {
                     **event,
+                    "button_position": None,
+                    "chord_button": None,
                     "mapping_complete": False,
                     "error": f"Chord {root} {chord_type} not available"
                 }
@@ -182,30 +219,40 @@ class BassMapper:
             midis = event.get("midi", [])
 
             if not midis:
-                return {**event, "mapping_complete": False}
+                return {
+                    **event,
+                    "button_position": None,
+                    "chord_button": None,
+                    "mapping_complete": False,
+                    "error": "Bass event is missing MIDI data"
+                }
 
             # For single notes in Stradella, typically use root bass row
-            # Find buttons in row 1 (root bass)
+            # Find buttons in row 1 (root bass), matching pitch class because
+            # MusicXML often represents bass notes in a different octave.
             root_buttons = [b for b in self.buttons if b["row"] == 1]
 
-            # Try to match MIDI note
             midi = midis[0]
-            matching = [b for b in root_buttons if b["midi"] == midi]
+            matching = [
+                b for b in root_buttons
+                if b.get("midi") is not None and b["midi"] % 12 == midi % 12
+            ]
 
             if matching:
                 return {
                     **event,
-                    "button_position": {
-                        "row": matching[0]["row"],
-                        "column": matching[0]["column"]
-                    },
+                    "button_position": self._button_position(matching[0]),
+                    "chord_button": None,
                     "mapping_complete": True
                 }
             else:
                 logger.warning(f"Stradella single note MIDI {midi} not in root row")
                 return {
                     **event,
-                    "mapping_complete": False
+                    "button_position": None,
+                    "chord_button": None,
+                    "mapping_complete": False,
+                    "error": f"Bass note MIDI {midi} is not available in root row"
                 }
 
     def map_events(self, events: List[Dict]) -> List[Dict]:
@@ -242,7 +289,11 @@ class BassMapper:
 
         return mapped_events
 
-    def validate_mapping(self, mapped_events: List[Dict]) -> Dict:
+    def validate_mapping(
+        self,
+        mapped_events: List[Dict],
+        source_events: Optional[List[Dict]] = None
+    ) -> Dict:
         """
         Validate that all events were successfully mapped.
 
@@ -252,19 +303,35 @@ class BassMapper:
         Returns:
             Dictionary with validation results
         """
-        total = len(mapped_events)
+        total = len(source_events) if source_events is not None else len(mapped_events)
         mapped = sum(
             1 for e in mapped_events
             if e.get("mapping_complete", False)
         )
+        unmapped_by_reason = {}
+        for event in mapped_events:
+            if event.get("mapping_complete", False):
+                continue
+            reason = event.get("error") or "unknown"
+            unmapped_by_reason[reason] = unmapped_by_reason.get(reason, 0) + 1
+
+        source = source_events if source_events is not None else mapped_events
+        midis = [
+            midi
+            for event in source
+            for midi in event.get("midi", [])
+        ]
 
         validation = {
+            "source_events": total,
             "total_events": total,
             "mapped_events": mapped,
             "unmapped_events": total - mapped,
             "success_rate": (mapped / total * 100) if total > 0 else 0,
             "valid": mapped == total,
-            "system": self.system
+            "system": self.system,
+            "unmapped_by_reason": unmapped_by_reason,
+            "midi_range": [min(midis), max(midis)] if midis else None
         }
 
         if not validation["valid"]:

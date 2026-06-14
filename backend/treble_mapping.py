@@ -33,8 +33,27 @@ class TrebleMapper:
         self.note_index = layout.get("noteIndex", {})
         self.buttons = layout.get("buttons", [])
         self.system = layout.get("system", "unknown")
+        self._buttons_by_position = {
+            (button["row"], button["column"]): button
+            for button in self.buttons
+        }
 
         logger.info(f"Treble mapper initialized for {self.system}")
+
+    def _button_position(self, position: Dict) -> Dict:
+        """Return a full serializable button position for API consumers."""
+        button = self._buttons_by_position.get(
+            (position["row"], position["column"]),
+            position
+        )
+        return {
+            "row": button["row"],
+            "column": button["column"],
+            "midi": button.get("midi"),
+            "note": button.get("note"),
+            "label": button.get("label", button.get("note")),
+            "type": button.get("type", "note")
+        }
 
     def map_note(self, midi: int) -> List[Dict]:
         """
@@ -49,7 +68,10 @@ class TrebleMapper:
         midi_str = str(midi)
 
         if midi_str in self.note_index:
-            positions = self.note_index[midi_str]
+            positions = [
+                self._button_position(position)
+                for position in self.note_index[midi_str]
+            ]
             logger.debug(f"MIDI {midi} found at {len(positions)} positions")
             return positions
 
@@ -141,6 +163,7 @@ class TrebleMapper:
 
             if midi is None:
                 logger.warning(f"Event missing MIDI: {event}")
+                previous_position = None
                 continue
 
             # Find all possible positions
@@ -148,6 +171,13 @@ class TrebleMapper:
 
             if not positions:
                 logger.error(f"Cannot map MIDI {midi} - out of accordion range")
+                mapped_events.append({
+                    **event,
+                    "button_positions": [],
+                    "selected_position": None,
+                    "mapping_complete": False,
+                    "error": f"MIDI {midi} is outside the treble layout range"
+                })
                 continue
 
             # Get next MIDI for lookahead (if available)
@@ -166,7 +196,8 @@ class TrebleMapper:
             mapped_event = {
                 **event,
                 "button_positions": positions,
-                "selected_position": selected
+                "selected_position": selected,
+                "mapping_complete": True
             }
 
             mapped_events.append(mapped_event)
@@ -225,7 +256,11 @@ class TrebleMapper:
 
         return mapped_events
 
-    def validate_mapping(self, mapped_events: List[Dict]) -> Dict:
+    def validate_mapping(
+        self,
+        mapped_events: List[Dict],
+        source_events: Optional[List[Dict]] = None
+    ) -> Dict:
         """
         Validate that all events were successfully mapped.
 
@@ -235,15 +270,34 @@ class TrebleMapper:
         Returns:
             Dictionary with validation results
         """
-        total = len(mapped_events)
-        mapped = sum(1 for e in mapped_events if "selected_position" in e)
+        total = len(source_events) if source_events is not None else len(mapped_events)
+        mapped = sum(
+            1 for e in mapped_events
+            if e.get("mapping_complete", e.get("selected_position") is not None)
+        )
+        unmapped_by_reason = {}
+        for event in mapped_events:
+            if event.get("mapping_complete", False):
+                continue
+            reason = event.get("error") or "unknown"
+            unmapped_by_reason[reason] = unmapped_by_reason.get(reason, 0) + 1
+
+        midis = [
+            event.get("midi")
+            for event in (source_events if source_events is not None else mapped_events)
+            if event.get("midi") is not None
+        ]
 
         validation = {
+            "source_events": total,
             "total_events": total,
             "mapped_events": mapped,
             "unmapped_events": total - mapped,
             "success_rate": (mapped / total * 100) if total > 0 else 0,
-            "valid": mapped == total
+            "valid": mapped == total,
+            "system": self.system,
+            "unmapped_by_reason": unmapped_by_reason,
+            "midi_range": [min(midis), max(midis)] if midis else None
         }
 
         if not validation["valid"]:

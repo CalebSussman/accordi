@@ -13,6 +13,9 @@ from typing import Dict, Optional
 import aiofiles
 import os
 import uuid
+import io
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 
@@ -71,6 +74,158 @@ PROCESSED_DIR.mkdir(exist_ok=True)
 jobs: Dict[str, JobStatus] = {}
 
 
+def _layout_from_request(layout_id: str) -> Dict:
+    """Resolve a preset layout ID into generated layout data."""
+    try:
+        return get_preset_layout(layout_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _mxl_rootfile_name(zip_file: zipfile.ZipFile) -> Optional[str]:
+    """Resolve the score XML path inside an MXL archive."""
+    try:
+        with zip_file.open("META-INF/container.xml") as container_file:
+            container_tree = ET.parse(container_file)
+        root = container_tree.getroot()
+        for element in root.iter():
+            if element.tag.endswith("rootfile"):
+                full_path = element.attrib.get("full-path")
+                if full_path and full_path in zip_file.namelist():
+                    return full_path
+    except (KeyError, ET.ParseError):
+        pass
+
+    xml_files = [
+        name for name in zip_file.namelist()
+        if name.endswith(".xml") and not name.startswith("META-INF/")
+    ]
+    return xml_files[0] if xml_files else None
+
+
+async def _write_normalized_musicxml(
+    filename: str,
+    content: bytes,
+    musicxml_path: Path
+) -> None:
+    """Store plain MusicXML bytes from a MusicXML or compressed MXL upload."""
+    if filename.endswith(".mxl"):
+        try:
+            with zipfile.ZipFile(io.BytesIO(content)) as zip_file:
+                rootfile_name = _mxl_rootfile_name(zip_file)
+                if not rootfile_name:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid .mxl file: no MusicXML content found"
+                    )
+                musicxml_content = zip_file.read(rootfile_name)
+                logger.info(f"Extracted MusicXML from .mxl: {rootfile_name}")
+        except zipfile.BadZipFile as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid .mxl file: not a valid ZIP archive"
+            ) from exc
+    else:
+        musicxml_content = content
+
+    async with aiofiles.open(musicxml_path, 'wb') as f:
+        await f.write(musicxml_content)
+
+
+async def process_musicxml_file(
+    job_id: str,
+    musicxml_path: Path,
+    config: Optional[ProcessRequest] = None,
+    omr_metadata: Optional[Dict] = None
+) -> Dict:
+    """
+    Shared MusicXML parse/layout/map/save pipeline.
+
+    This keeps direct MusicXML upload and future PDF-to-MusicXML processing on
+    the same result contract.
+    """
+    config = config or ProcessRequest()
+    omr_metadata = omr_metadata or {}
+    output_dir = PROCESSED_DIR / job_id
+    output_dir.mkdir(exist_ok=True)
+
+    if job_id in jobs:
+        jobs[job_id].status = "processing"
+        jobs[job_id].progress = 30
+        jobs[job_id].message = "Parsing music notation..."
+
+    parser = create_parser()
+    treble_events, bass_events, music_metadata = await parser.parse_musicxml(
+        musicxml_path
+    )
+
+    if job_id in jobs:
+        jobs[job_id].progress = 50
+        jobs[job_id].message = "Generating keyboard layouts..."
+
+    treble_layout_id = config.treble_layout or "b_system_5row"
+    bass_layout_id = config.bass_layout or "stradella_120"
+    treble_layout = _layout_from_request(treble_layout_id)
+    bass_layout = _layout_from_request(bass_layout_id)
+
+    if job_id in jobs:
+        jobs[job_id].progress = 70
+        jobs[job_id].message = "Mapping notes to buttons..."
+
+    treble_mapper = create_treble_mapper(treble_layout)
+    mapped_treble_events = treble_mapper.map_events(treble_events)
+
+    bass_mapper = create_bass_mapper(bass_layout)
+    mapped_bass_events = bass_mapper.map_events(bass_events)
+
+    treble_validation = treble_mapper.validate_mapping(
+        mapped_treble_events,
+        treble_events
+    )
+    bass_validation = bass_mapper.validate_mapping(
+        mapped_bass_events,
+        bass_events
+    )
+    treble_validation["layout_id"] = treble_layout_id
+    bass_validation["layout_id"] = bass_layout_id
+
+    result = {
+        "job_id": job_id,
+        "treble_events": mapped_treble_events,
+        "bass_events": mapped_bass_events,
+        "metadata": {
+            **music_metadata,
+            "omr_warnings": omr_metadata.get("warnings", []),
+            "treble_layout": treble_layout["system"],
+            "bass_layout": bass_layout["system"],
+            "treble_layout_id": treble_layout_id,
+            "bass_layout_id": bass_layout_id,
+            "treble_mapping_success": treble_validation["success_rate"],
+            "bass_mapping_success": bass_validation["success_rate"]
+        },
+        "treble_layout_id": treble_layout_id,
+        "bass_layout_id": bass_layout_id,
+        "treble_layout": treble_layout,
+        "bass_layout": bass_layout,
+        "validation": {
+            "treble": treble_validation,
+            "bass": bass_validation
+        }
+    }
+
+    result_path = output_dir / "result.json"
+    async with aiofiles.open(result_path, 'w') as f:
+        await f.write(json.dumps(result, indent=2))
+
+    if job_id in jobs:
+        jobs[job_id].status = "completed"
+        jobs[job_id].progress = 100
+        jobs[job_id].message = "Processing complete"
+        jobs[job_id].completed_at = datetime.utcnow()
+
+    return result
+
+
 async def process_pdf_background(job_id: str, config: ProcessRequest):
     """
     Background task to process PDF through complete pipeline.
@@ -110,89 +265,12 @@ async def process_pdf_background(job_id: str, config: ProcessRequest):
         jobs[job_id].progress = 30
         jobs[job_id].message = "Parsing music notation..."
 
-        # Step 2: Parse MusicXML
-        parser = create_parser()
-        treble_events, bass_events, music_metadata = await parser.parse_musicxml(
-            musicxml_path
+        await process_musicxml_file(
+            job_id,
+            musicxml_path,
+            config=config,
+            omr_metadata=omr_metadata
         )
-
-        jobs[job_id].progress = 50
-        jobs[job_id].message = "Generating keyboard layouts..."
-
-        # Step 3: Generate Layouts
-        # Get layout configuration from request
-        treble_layout_config = config.options.get("treble_layout", {})
-        bass_layout_config = config.options.get("bass_layout", {})
-
-        # Use preset or custom configuration
-        if "preset" in treble_layout_config:
-            treble_layout = get_preset_layout(treble_layout_config["preset"])
-        else:
-            treble_layout = generate_layout(
-                system_type=treble_layout_config.get("system", "c-system"),
-                rows=treble_layout_config.get("rows", 5),
-                columns=treble_layout_config.get("columns", 12),
-                start_midi=treble_layout_config.get("start_midi", 48)
-            )
-
-        if "preset" in bass_layout_config:
-            bass_layout = get_preset_layout(bass_layout_config["preset"])
-        else:
-            bass_layout = generate_layout(
-                system_type=bass_layout_config.get("system", "stradella"),
-                rows=bass_layout_config.get("rows"),
-                columns=bass_layout_config.get("columns", 20),
-                start_midi=bass_layout_config.get("start_midi")
-            )
-
-        jobs[job_id].progress = 60
-        jobs[job_id].message = "Mapping notes to buttons..."
-
-        # Step 4: Map Events to Buttons
-        treble_mapper = create_treble_mapper(treble_layout)
-        mapped_treble_events = treble_mapper.map_events(treble_events)
-
-        bass_mapper = create_bass_mapper(bass_layout)
-        mapped_bass_events = bass_mapper.map_events(bass_events)
-
-        jobs[job_id].progress = 80
-        jobs[job_id].message = "Finalizing results..."
-
-        # Validate mappings
-        treble_validation = treble_mapper.validate_mapping(mapped_treble_events)
-        bass_validation = bass_mapper.validate_mapping(mapped_bass_events)
-
-        # Step 5: Save Results
-        result = {
-            "job_id": job_id,
-            "treble_events": mapped_treble_events,
-            "bass_events": mapped_bass_events,
-            "metadata": {
-                **music_metadata,
-                "omr_warnings": omr_metadata.get("warnings", []),
-                "treble_layout": treble_layout["system"],
-                "bass_layout": bass_layout["system"],
-                "treble_mapping_success": treble_validation["success_rate"],
-                "bass_mapping_success": bass_validation["success_rate"]
-            },
-            "treble_layout": treble_layout,
-            "bass_layout": bass_layout,
-            "validation": {
-                "treble": treble_validation,
-                "bass": bass_validation
-            }
-        }
-
-        # Save to file
-        result_path = output_dir / "result.json"
-        async with aiofiles.open(result_path, 'w') as f:
-            await f.write(json.dumps(result, indent=2))
-
-        # Update job status
-        jobs[job_id].status = "completed"
-        jobs[job_id].progress = 100
-        jobs[job_id].message = "Processing complete"
-        jobs[job_id].completed_at = datetime.utcnow()
 
         logger.info(f"Job {job_id} completed successfully")
 
@@ -542,9 +620,6 @@ async def upload_musicxml(file: UploadFile = File(...)) -> Dict:
     Raises:
         HTTPException: If file is not MusicXML or too large
     """
-    import zipfile
-    import io
-
     # Validate file type
     if not (file.filename.endswith('.mxl') or file.filename.endswith('.musicxml') or file.filename.endswith('.xml')):
         raise HTTPException(
@@ -569,51 +644,38 @@ async def upload_musicxml(file: UploadFile = File(...)) -> Dict:
     output_dir = PROCESSED_DIR / job_id
     output_dir.mkdir(exist_ok=True)
 
-    # Handle .mxl files (compressed MusicXML)
     musicxml_path = output_dir / f"{job_id}.musicxml"
+    await _write_normalized_musicxml(file.filename, temp_file, musicxml_path)
 
-    if file.filename.endswith('.mxl'):
-        # Extract the MusicXML from the compressed archive
-        try:
-            with zipfile.ZipFile(io.BytesIO(temp_file)) as zip_file:
-                # .mxl files contain a file with .xml extension inside
-                xml_files = [name for name in zip_file.namelist() if name.endswith('.xml') and not name.startswith('META-INF')]
-
-                if not xml_files:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Invalid .mxl file: no MusicXML content found"
-                    )
-
-                # Extract the first XML file (usually the score)
-                xml_content = zip_file.read(xml_files[0])
-
-                async with aiofiles.open(musicxml_path, 'wb') as f:
-                    await f.write(xml_content)
-
-                logger.info(f"Extracted MusicXML from .mxl: {xml_files[0]}")
-
-        except zipfile.BadZipFile:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid .mxl file: not a valid ZIP archive"
-            )
-    else:
-        # Plain .musicxml or .xml file
-        async with aiofiles.open(musicxml_path, 'wb') as f:
-            await f.write(temp_file)
-
-    logger.info(f"MusicXML uploaded: job_id={job_id}, size={file_size} bytes")
-
-    # Initialize job status (for compatibility with existing frontend)
     jobs[job_id] = JobStatus(
         job_id=job_id,
-        status="completed",  # Immediate completion since no processing needed
-        progress=100,
+        status="processing",
+        progress=10,
         message="MusicXML file uploaded successfully",
-        created_at=datetime.utcnow(),
-        completed_at=datetime.utcnow()
+        created_at=datetime.utcnow()
     )
+
+    try:
+        result = await process_musicxml_file(
+            job_id,
+            musicxml_path,
+            config=ProcessRequest()
+        )
+    except HTTPException:
+        jobs[job_id].status = "failed"
+        jobs[job_id].message = "Processing failed"
+        raise
+    except Exception as exc:
+        logger.error(f"MusicXML job {job_id} failed: {exc}", exc_info=True)
+        jobs[job_id].status = "failed"
+        jobs[job_id].error = str(exc)
+        jobs[job_id].message = f"Processing failed: {str(exc)}"
+        raise HTTPException(
+            status_code=500,
+            detail=f"MusicXML processing failed: {str(exc)}"
+        ) from exc
+
+    logger.info(f"MusicXML processed: job_id={job_id}, size={file_size} bytes")
 
     return {
         "success": True,
@@ -622,7 +684,9 @@ async def upload_musicxml(file: UploadFile = File(...)) -> Dict:
         "size": file_size,
         "status": "completed",
         "musicxml_url": f"/musicxml/{job_id}",
-        "message": "MusicXML ready for display"
+        "results_url": f"/results/{job_id}",
+        "validation": result["validation"],
+        "message": "MusicXML mapped successfully"
     }
 
 

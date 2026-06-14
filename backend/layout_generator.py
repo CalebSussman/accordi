@@ -430,7 +430,7 @@ PRESET_CONFIGS = {
     "b_system_5row": {
         "type": SystemType.B_SYSTEM,
         "rows": 5,
-        "columns": 12,
+        "columns": 24,
         "start_midi": 47  # B2
     },
     "b_system_4row": {

@@ -20,11 +20,11 @@ class UploadResponse(BaseModel):
 class ProcessRequest(BaseModel):
     """Request model for processing configuration."""
     treble_layout: str = Field(
-        default="c_system_5row_standard",
+        default="b_system_5row",
         description="Treble (right-hand) layout ID"
     )
     bass_layout: str = Field(
-        default="stradella_120_standard",
+        default="stradella_120",
         description="Bass (left-hand) layout ID"
     )
     omr_engine: str = Field(
@@ -97,6 +97,14 @@ class TrebleEvent(BaseModel):
         default=None,
         description="Articulation marking (staccato, legato, etc.)"
     )
+    mapping_complete: Optional[bool] = Field(
+        default=None,
+        description="Whether this event was mapped to a button"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Mapping error if this event could not be mapped"
+    )
 
 
 class ChordButton(BaseModel):
@@ -132,13 +140,25 @@ class BassEvent(BaseModel):
         default=None,
         description="Chord root if event is a chord"
     )
-    button_position: Optional[ButtonPosition] = Field(
+    button_position: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Button position for single note"
     )
-    chord_button: Optional[ChordButton] = Field(
+    chord_button: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Chord button for Stradella system"
+    )
+    mapped_notes: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Mapped notes for free-bass or multi-note mappings"
+    )
+    mapping_complete: Optional[bool] = Field(
+        default=None,
+        description="Whether this event was mapped to a button"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Mapping error if this event could not be mapped"
     )
 
 
@@ -186,6 +206,18 @@ class MappingResult(BaseModel):
     bass_layout_id: Optional[str] = Field(
         default=None,
         description="Used bass layout ID"
+    )
+    treble_layout: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Generated treble layout used for mapping"
+    )
+    bass_layout: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Generated bass layout used for mapping"
+    )
+    validation: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Mapping validation summary"
     )
 
 
