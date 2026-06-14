@@ -229,6 +229,8 @@ async function handleMusicXMLSelect(e) {
         }
 
         try {
+            state.isProcessing = true;
+
             // Hide empty state, show processing
             elements.emptyState?.classList.add('hidden');
             elements.processingOverlay?.classList.remove('hidden');
@@ -258,8 +260,19 @@ async function handleMusicXMLSelect(e) {
             // Render with OSMD
             await renderScoreFromString(musicXmlText);
 
-            // Hide processing overlay
+            updateProcessingStatus('Loading mapping results...', 95);
+
+            // Fetch and store mapping results
+            const results = await API.getResults(uploadResult.job_id);
+            console.log('MusicXML results:', results);
+
+            state.results = results;
+            state.trebleLayout = results.treble_layout;
+            state.bassLayout = results.bass_layout;
+
+            // Hide processing, show results
             elements.processingOverlay?.classList.add('hidden');
+            showResults(results);
 
             console.log('MusicXML rendered successfully from backend');
         } catch (error) {
@@ -267,6 +280,7 @@ async function handleMusicXMLSelect(e) {
             showError(`Failed to load MusicXML: ${error.message}`);
             elements.processingOverlay?.classList.add('hidden');
             elements.emptyState?.classList.remove('hidden');
+            state.isProcessing = false;
         }
     }
 }
