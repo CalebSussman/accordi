@@ -1,6 +1,163 @@
 /**
- * Playback Controls Styling
+ * View Drawer and Playback Controls Styling
  */
+
+/* View Panel (matches settings panel style) */
+.view-drawer {
+    position: absolute;
+    top: calc(100% + var(--spacing-sm));
+    right: 0;
+    min-width: 300px;
+    background: rgba(20, 20, 20, 0.95);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    box-shadow: 0 8px 32px var(--shadow-medium);
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: all var(--transition-base);
+    z-index: 1000;
+}
+
+[data-theme="light"] .view-drawer {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.view-drawer.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.drawer-content {
+    /* No extra padding needed, it's on .view-drawer */
+}
+
+.drawer-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+/* Drawer Sections */
+.drawer-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-title {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Control Groups */
+.control-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+}
+
+.control-value {
+    flex: 1;
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Circle Buttons */
+.circle-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-secondary);
+}
+
+.circle-btn:hover {
+    background: rgba(212, 175, 55, 0.15);
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+    transform: scale(1.05);
+}
+
+.circle-btn:active {
+    transform: scale(0.95);
+}
+
+.circle-btn svg {
+    display: block;
+}
+
+/* Toggle Group */
+.toggle-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.toggle-btn {
+    flex: 1;
+    min-width: 120px;
+    height: 60px;
+    border-radius: var(--border-radius-md);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    position: relative;
+}
+
+.toggle-btn::after {
+    content: attr(data-label);
+    font-size: 0.75rem;
+}
+
+.toggle-btn:hover:not(:disabled):not(.active) {
+    background: rgba(212, 175, 55, 0.1);
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+}
+
+.toggle-btn.active {
+    background: var(--gold-primary);
+    border-color: var(--gold-primary);
+    color: var(--bg-ambient);
+}
+
+.toggle-btn.active:hover {
+    background: var(--gold-highlight);
+    border-color: var(--gold-highlight);
+}
+
+.toggle-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.toggle-btn svg {
+    display: block;
+}
 
 /* Playback Controls Container */
 .playback-controls {

@@ -435,13 +435,14 @@ async function renderScoreFromString(musicXmlString) {
             // osmd.EngravingRules.RenderNoteNames = false; // Set by view controls
         }
 
-        // Initial render
-        osmd.render();
-
-        // Initialize score controls (playback, view menu)
-        initializeScoreControls(osmd);
+        // Initial render - wait for it to complete
+        await osmd.render();
 
         console.log('Score rendered successfully from string');
+
+        // Initialize score controls AFTER rendering completes
+        // This ensures GraphicalMusicSheet is populated
+        initializeScoreControls(osmd);
     } catch (error) {
         console.error('Error rendering score:', error);
         throw error;

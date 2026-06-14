@@ -61,14 +61,84 @@
         </div>
 
         <div class="nav-right">
-            <button id="viewMenuBtn" class="btn btn-secondary btn-text-mobile-hide hidden" title="View Options">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                    <circle cx="12" cy="12" r="1"/>
-                    <circle cx="12" cy="5" r="1"/>
-                    <circle cx="12" cy="19" r="1"/>
-                </svg>
-                View
-            </button>
+            <div style="position: relative;">
+                <button id="viewBtn" class="btn btn-secondary btn-text-mobile-hide hidden" title="View Options">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    View
+                </button>
+
+                <!-- View Drawer (dropdown panel) -->
+                <div id="viewDrawer" class="view-drawer">
+                    <h3 class="drawer-title">View Options</h3>
+
+                    <!-- Zoom Section -->
+                    <div class="drawer-section">
+                        <label class="section-title">Zoom</label>
+                        <div class="control-group">
+                            <button id="zoomOutBtn" class="circle-btn" aria-label="Zoom Out" title="Zoom Out">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="8" y1="12" x2="16" y2="12"/>
+                                </svg>
+                            </button>
+                            <span id="zoomLevel" class="control-value">100%</span>
+                            <button id="zoomInBtn" class="circle-btn" aria-label="Zoom In" title="Zoom In">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="8" x2="12" y2="16"/>
+                                    <line x1="8" y1="12" x2="16" y2="12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Note Spacing Section -->
+                    <div class="drawer-section">
+                        <label class="section-title">Note Spacing</label>
+                        <div class="control-group">
+                            <button id="spacingNarrowBtn" class="circle-btn" aria-label="Narrow Spacing" title="Narrow Spacing">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="11 17 6 12 11 7"/>
+                                    <polyline points="18 17 13 12 18 7"/>
+                                </svg>
+                            </button>
+                            <span id="spacingLevel" class="control-value">Normal</span>
+                            <button id="spacingWideBtn" class="circle-btn" aria-label="Widen Spacing" title="Widen Spacing">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="13 17 18 12 13 7"/>
+                                    <polyline points="6 17 11 12 6 7"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Annotations Section -->
+                    <div class="drawer-section">
+                        <label class="section-title">Annotations</label>
+                        <div class="toggle-group">
+                            <button id="noteNamesToggle" class="toggle-btn" data-label="Note Names" aria-label="Toggle Note Names">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 18V5l12-2v13"/>
+                                    <circle cx="6" cy="18" r="3"/>
+                                    <circle cx="18" cy="16" r="3"/>
+                                </svg>
+                            </button>
+                            <button id="fingeringsToggle" class="toggle-btn" data-label="Fingerings (Phase 5)" disabled aria-label="Toggle Fingerings">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+                                    <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+                                    <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                                    <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <button id="uploadBtn" class="btn btn-primary">
                 Upload New Score
             </button>
@@ -78,53 +148,6 @@
                     <path d="M12 1v6m0 6v6m-6-12h6m6 0h-6m-6 6h6m6 0h-6M12 1a11 11 0 0 0 0 22 11 11 0 0 0 0-22"/>
                 </svg>
             </button>
-        </div>
-
-        <!-- View Menu Panel (dropdown) -->
-        <div id="viewPanel" class="view-panel">
-            <h3 style="margin-bottom: var(--spacing-md); font-size: 1.125rem;">View Options</h3>
-
-            <!-- Appearance Section -->
-            <div style="margin-bottom: var(--spacing-lg);">
-                <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: var(--spacing-sm); color: var(--text-secondary);">Appearance</h4>
-
-                <label class="checkbox-label">
-                    <input type="checkbox" id="sansSerifToggle">
-                    <span>Sans-serif font</span>
-                </label>
-
-                <div style="margin-top: var(--spacing-sm);">
-                    <label style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">Note Color</label>
-                    <input type="color" id="noteColorPicker" value="#000000" class="color-picker">
-                </div>
-
-                <div style="margin-top: var(--spacing-sm);">
-                    <label for="zoomSlider" style="display: block; margin-bottom: var(--spacing-xs); font-size: 0.875rem; color: var(--text-secondary);">
-                        Zoom: <span id="zoomValue" class="tabular-nums">100%</span>
-                    </label>
-                    <input type="range" id="zoomSlider" min="50" max="200" value="100" step="10" class="slider">
-                </div>
-            </div>
-
-            <!-- Annotations Section -->
-            <div style="margin-bottom: var(--spacing-lg);">
-                <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: var(--spacing-sm); color: var(--text-secondary);">Annotations</h4>
-
-                <label class="checkbox-label">
-                    <input type="checkbox" id="noteNamesToggle">
-                    <span>Show note names</span>
-                </label>
-
-                <label class="checkbox-label">
-                    <input type="checkbox" id="fingeringsToggle" disabled>
-                    <span style="color: var(--text-secondary);">Show fingerings (Phase 5)</span>
-                </label>
-
-                <label class="checkbox-label">
-                    <input type="checkbox" id="chordSymbolsToggle" checked>
-                    <span>Show chord symbols</span>
-                </label>
-            </div>
         </div>
 
         <!-- Settings Panel (dropdown) -->
