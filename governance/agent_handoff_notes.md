@@ -16,6 +16,7 @@ Governor: `GOV-00`
   - Governance integrity inspector: multi-agent explorer `019ec3a9-2880-71d2-a6a8-530fbe730510`
 - Runtime `QA-05` independently verified the backend MusicXML path and wrote `governance/governor_audits/QA-05__2026-06-14__audit.md`.
 - `GOV-00` accepted WEB-03 local backend behavior with caveats in `governance/governor_audits/GOVERNOR-WEB-03__2026-06-14__audit.md`.
+- `DEPLOY-06` deployed commit `712b2a6` to Render service `accordi` and verified hosted backend behavior at `https://akkordio.onrender.com`.
 
 ## What Passed?
 
@@ -34,6 +35,10 @@ Governor: `GOV-00`
   - `/musicxml/{job_id}` returns normalized MusicXML.
   - `/results/{job_id}` returns 489 treble events and 514 bass events.
   - B-system treble and 120-bass Stradella validation both map 100% for this fixture.
+- Hosted backend MusicXML upload-to-results also passes for Bella Ciao on Render:
+  - Render deploy: `dep-d8n09ecm0tmc73djbb90`
+  - hosted job: `e45b0383-b669-4c57-a4e8-f3fd575c7050`
+  - `/upload_musicxml`, `/musicxml/{job_id}`, and `/results/{job_id}` all returned expected data.
 
 ## What Failed?
 
@@ -45,13 +50,14 @@ Governor: `GOV-00`
 
 - Phase 1 backend MusicXML implementation is accepted locally with caveats.
 - Runtime path hardening remains open because backend paths are relative to the process working directory.
-- Deployment is blocked until local proof and source/deploy ownership are clear.
+- Backend deployment is complete for the MusicXML path.
+- Frontend deployment/source ownership is still unresolved.
 
 ## What Should Happen Next?
 
-1. Name the canonical frontend source path before `UI-04` starts.
-2. `UI-04` should integrate frontend upload/rendering with real `/upload_musicxml`, `/musicxml/{job_id}`, and `/results/{job_id}`.
-3. Keep deployment blocked until UI and source/deploy reconciliation pass.
+1. User can test the hosted frontend against the deployed backend.
+2. If frontend testing fails, inspect browser Network/Console and assign runtime `UI-04`.
+3. Name the canonical frontend source path before any frontend code edits.
 
 ## Files/Artifacts That Matter
 
@@ -67,6 +73,7 @@ Governor: `GOV-00`
 - WEB audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/WEB-03__2026-06-14__audit.md`
 - QA audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/QA-05__2026-06-14__audit.md`
 - Governor WEB audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/GOVERNOR-WEB-03__2026-06-14__audit.md`
+- Deployment audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/DEPLOY-06__2026-06-14__audit.md`
 - Accepted local backend modified files for WEB-03, pending commit/deployment:
   - `/Users/caleb/Documents/GitHub/akkordio-main/.gitignore`
   - `/Users/caleb/Documents/GitHub/akkordio-main/backend/bass_mapping.py`
@@ -88,3 +95,4 @@ Governor: `GOV-00`
 - Do not treat `SCHEMA-02` acceptance as proof that backend endpoints work.
 - Do not describe inline role execution as independent runtime sub-agent work. Actual runtime sub-agent IDs must be recorded when used.
 - Do not treat local backend acceptance as frontend, hosted, or deployment acceptance.
+- Hosted backend is now accepted for the MusicXML path, but frontend UI behavior is still unaccepted.

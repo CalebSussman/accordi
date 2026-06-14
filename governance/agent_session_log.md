@@ -159,3 +159,44 @@
   - QA audit exists only in canonical `akkordio-main` governance.
 - Next handoff:
   - Resolve canonical frontend source path, then dispatch runtime `UI-04` sub-agent.
+
+## 2026-06-14 - `DEPLOY-06` - Render Backend Deployment
+
+- Goal: deploy accepted backend MusicXML mapping pipeline to cloud and verify hosted behavior.
+- Runtime inspector sub-agent:
+  - `019ec3b8-943e-71c2-aa38-c7db7343ff98`
+- Commands/files inspected:
+  - `render.yaml`
+  - `Dockerfile`
+  - `backend/requirements.txt`
+  - `git status --short --branch`
+  - `git remote -v`
+  - `git diff --check`
+  - backend `py_compile`
+  - Render REST API service/deploy endpoints
+  - hosted `https://akkordio.onrender.com/health`
+  - hosted `POST /upload_musicxml`
+  - hosted `GET /musicxml/{job_id}`
+  - hosted `GET /results/{job_id}`
+- Decisions made:
+  - Harden Docker startup to honor `${PORT:-8000}`.
+  - Commit and push accepted backend/governance changes to `main`.
+  - Trigger manual Render deploy because service auto-deploy is disabled.
+- Docs updated:
+  - `governance/governor_audits/DEPLOY-06__2026-06-14__audit.md`
+  - `governance/agent_checklists.md`
+  - `governance/agent_handoff_notes.md`
+  - `governance/agent_session_log.md`
+- Deployment proof:
+  - Commit: `712b2a66a377480b9d46cd91fc583a21f004c5de`
+  - Render service: `accordi`
+  - Render deploy: `dep-d8n09ecm0tmc73djbb90`
+  - Hosted backend health: 200
+  - Hosted Bella Ciao upload: 200 with `results_url` and validation
+  - Hosted results: 489 treble events, 514 bass events, `b_system_5row`, `stradella_120`
+- Non-mutation confirmations:
+  - No frontend files were changed.
+  - No PDF/OCR or Audiveris paths were tested or accepted.
+  - No secrets were printed.
+- Next handoff:
+  - User can test hosted frontend. If it fails, dispatch runtime `UI-04` for browser/network investigation.
