@@ -200,3 +200,55 @@
   - No secrets were printed.
 - Next handoff:
   - User can test hosted frontend. If it fails, dispatch runtime `UI-04` for browser/network investigation.
+
+## 2026-06-14 - `UI-04` runtime sub-agent - MusicXML Frontend Workflow Repair
+
+- Runtime sub-agent ID: `019ec3d0-d8d0-7be0-9966-9e1c24475591`
+- Goal: fix the GitHub Pages frontend MusicXML/MXL upload path so it fetches `/results/{job_id}` and reveals accordion mapping UI after upload.
+- Commands/files inspected by GOV-00 before dispatch:
+  - live browser DOM snapshot for `https://calebsussman.github.io/accordi/`
+  - `/Users/caleb/Documents/GitHub/akkordio/js/app.js`
+  - `/Users/caleb/Documents/GitHub/akkordio/js/api.js`
+  - git status for `akkordio-main` and `akkordio`
+- Decisions made:
+  - Assign current canonical frontend path for this fix: `/Users/caleb/Documents/GitHub/akkordio` on branch `gh-pages`.
+  - Keep backend, PDF/OCR, Render, and duplicate-folder cleanup out of scope.
+- Docs updated:
+  - `governance/agent_handoff_notes.md`
+  - `governance/agent_session_log.md`
+- Non-mutation confirmations:
+  - GOV-00 did not edit frontend code before dispatch.
+  - Existing untracked `/Users/caleb/Documents/GitHub/akkordio/.gitignore` remains untouched.
+- Next handoff:
+  - Wait for `UI-04` audit, inspect its frontend diff, run browser upload proof, then decide acceptance.
+
+## 2026-06-14 - `GOV-00` - UI-04 Acceptance
+
+- Goal: independently verify and accept/reject UI-04 MusicXML frontend workflow repair.
+- Commands/files inspected:
+  - `/Users/caleb/Documents/GitHub/akkordio/js/app.js`
+  - `governance/governor_audits/UI-04__2026-06-14__audit.md`
+  - `git -C /Users/caleb/Documents/GitHub/akkordio diff -- js/app.js`
+  - `node --check /Users/caleb/Documents/GitHub/akkordio/js/app.js`
+  - `git -C /Users/caleb/Documents/GitHub/akkordio diff --check`
+  - local static server on `http://127.0.0.1:3000/`
+  - Playwright upload of `/Users/caleb/Downloads/Bella_Ciao_-_La_Casa_de_Papel.mxl`
+- Decisions made:
+  - Accept UI-04 with caveats for deployment to `gh-pages`.
+- Browser proof:
+  - Hosted backend upload/musicxml/results all returned 200.
+  - `#accordionPanel` visible after upload.
+  - `#playbackBar` visible after upload.
+  - `#trebleKeyboard` children: 120.
+  - `#bassKeyboard` children: 120.
+  - No captured console warnings/errors.
+- Docs updated:
+  - `governance/governor_audits/GOVERNOR-UI-04__2026-06-14__audit.md`
+  - `governance/agent_checklists.md`
+  - `governance/agent_handoff_notes.md`
+  - `governance/agent_session_log.md`
+- Non-mutation confirmations:
+  - Backend files were not changed.
+  - Existing untracked `gh-pages` `.gitignore` remains untouched.
+- Next handoff:
+  - Commit/push accepted frontend fix to `gh-pages`, then smoke test public GitHub Pages.

@@ -17,6 +17,8 @@ Governor: `GOV-00`
 - Runtime `QA-05` independently verified the backend MusicXML path and wrote `governance/governor_audits/QA-05__2026-06-14__audit.md`.
 - `GOV-00` accepted WEB-03 local backend behavior with caveats in `governance/governor_audits/GOVERNOR-WEB-03__2026-06-14__audit.md`.
 - `DEPLOY-06` deployed commit `712b2a6` to Render service `accordi` and verified hosted backend behavior at `https://akkordio.onrender.com`.
+- Runtime `UI-04` sub-agent `019ec3d0-d8d0-7be0-9966-9e1c24475591` is assigned to the GitHub Pages frontend worktree `/Users/caleb/Documents/GitHub/akkordio` to fix the MusicXML upload results workflow.
+- `GOV-00` accepted the UI-04 MusicXML workflow repair with caveats after independent browser upload proof on local `gh-pages` content.
 
 ## What Passed?
 
@@ -43,21 +45,21 @@ Governor: `GOV-00`
 ## What Failed?
 
 - PDF/OCR remains outside Phase 1 and is known unreliable.
-- Frontend integration has not been accepted.
-- Frontend canonical source/deploy flow is unresolved.
+- Frontend MusicXML integration is accepted locally and pending/pushed to GitHub Pages deployment.
+- Canonical frontend path for the current MusicXML UI fix is `/Users/caleb/Documents/GitHub/akkordio` on branch `gh-pages`.
 
 ## What Is Blocked?
 
 - Phase 1 backend MusicXML implementation is accepted locally with caveats.
 - Runtime path hardening remains open because backend paths are relative to the process working directory.
 - Backend deployment is complete for the MusicXML path.
-- Frontend deployment/source ownership is still unresolved.
+- Frontend MusicXML workflow repair is accepted locally; public GitHub Pages smoke proof is the remaining deployment check.
 
 ## What Should Happen Next?
 
-1. User can test the hosted frontend against the deployed backend.
-2. If frontend testing fails, inspect browser Network/Console and assign runtime `UI-04`.
-3. Name the canonical frontend source path before any frontend code edits.
+1. Commit and push accepted `gh-pages` frontend fix.
+2. Smoke test `https://calebsussman.github.io/accordi/` after GitHub Pages updates.
+3. If public smoke fails, inspect browser Network/Console before changing backend.
 
 ## Files/Artifacts That Matter
 
@@ -74,6 +76,9 @@ Governor: `GOV-00`
 - QA audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/QA-05__2026-06-14__audit.md`
 - Governor WEB audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/GOVERNOR-WEB-03__2026-06-14__audit.md`
 - Deployment audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/DEPLOY-06__2026-06-14__audit.md`
+- UI audit target: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/UI-04__2026-06-14__audit.md`
+- Governor UI audit: `/Users/caleb/Documents/GitHub/akkordio-main/governance/governor_audits/GOVERNOR-UI-04__2026-06-14__audit.md`
+- Frontend file under repair: `/Users/caleb/Documents/GitHub/akkordio/js/app.js`
 - Accepted local backend modified files for WEB-03, pending commit/deployment:
   - `/Users/caleb/Documents/GitHub/akkordio-main/.gitignore`
   - `/Users/caleb/Documents/GitHub/akkordio-main/backend/bass_mapping.py`
@@ -96,3 +101,5 @@ Governor: `GOV-00`
 - Do not describe inline role execution as independent runtime sub-agent work. Actual runtime sub-agent IDs must be recorded when used.
 - Do not treat local backend acceptance as frontend, hosted, or deployment acceptance.
 - Hosted backend is now accepted for the MusicXML path, but frontend UI behavior is still unaccepted.
+- UI-04 local frontend proof used `http://127.0.0.1:3000/` with hosted backend and Bella Ciao; public Pages proof still needs post-push smoke.
+- `gh-pages` currently has an unrelated untracked `.gitignore`; do not delete or overwrite it without explicit authorization.
