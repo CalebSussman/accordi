@@ -20,4 +20,4 @@ Checklist items are only completed after objective proof and governor acceptance
 
 - [x] Deploy accepted backend MusicXML pipeline to Render - Responsible: `DEPLOY-06` - Completed: 2026-06-14 - Audit: `governance/governor_audits/DEPLOY-06__2026-06-14__audit.md`
 - [ ] Reconcile `main` vs `gh-pages` frontend source/deployment flow - Responsible: `DEPLOY-06` - Audit: TBD
-- [ ] Deploy frontend only after frontend proof passes - Responsible: `DEPLOY-06` - Audit: TBD
+- [x] Deploy frontend MusicXML workflow fix to GitHub Pages - Responsible: `DEPLOY-06` - Completed: 2026-06-14 - Audit: `governance/governor_audits/GOVERNOR-UI-04__2026-06-14__audit.md`

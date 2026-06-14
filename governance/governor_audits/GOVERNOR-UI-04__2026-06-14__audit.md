@@ -4,7 +4,7 @@ Date: 2026-06-14
 Governor: `GOV-00`  
 Audited runtime sub-agent: `019ec3d0-d8d0-7be0-9966-9e1c24475591`  
 Work order: `UI-04-FRONTEND-MUSICXML-RESULTS`  
-Verdict: PASS WITH CAVEATS
+Verdict: PASS
 
 ## Scope Audited
 
@@ -96,16 +96,48 @@ Forbidden scope respected:
 - No secrets printed.
 - Pre-existing untracked `/Users/caleb/Documents/GitHub/akkordio/.gitignore` remains untouched.
 
+## Public GitHub Pages Proof
+
+After accepting the local proof, GOV-00 committed and pushed the frontend fix to `gh-pages`:
+
+```text
+ca69f0e Fix MusicXML frontend results workflow
+```
+
+GitHub Pages served the updated `js/app.js`, confirmed by the presence of `Loading mapping results` in the public asset.
+
+Public smoke test against `https://calebsussman.github.io/accordi/`:
+
+- Uploaded `/Users/caleb/Downloads/Bella_Ciao_-_La_Casa_de_Papel.mxl`.
+- Hosted backend responses observed:
+  - `GET https://akkordio.onrender.com/health` -> 200
+  - `POST https://akkordio.onrender.com/upload_musicxml` -> 200
+  - `GET https://akkordio.onrender.com/musicxml/{job_id}` -> 200
+  - `GET https://akkordio.onrender.com/results/{job_id}` -> 200
+- Browser state after upload:
+  - `#accordionPanel` hidden: `false`
+  - `#accordionPanel` display: `block`
+  - `#playbackBar` hidden: `false`
+  - `#playbackBar` display: `flex`
+  - `#processingOverlay` hidden: `true`
+  - `#errorToast` hidden: `true`
+  - `#osmd-container` had rendered content
+  - `#trebleKeyboard` children: `120`
+  - `#bassKeyboard` children: `120`
+  - console warnings/errors captured by verifier: `[]`
+
+Screenshot artifact:
+
+- `/tmp/akkordio-public-after-upload.png`
+
 ## Caveats
 
-- This governor audit verified the patched frontend through a local static server pointed at the hosted backend. It has not yet verified the public GitHub Pages URL after push.
-- Browser visual proof uses local `gh-pages` content before deployment.
 - Frontend upload relies on hosted backend job files being available during the current Render process lifetime.
 
 ## Governor Decision
 
-PASS WITH CAVEATS. The UI-04 implementation is accepted for deployment to `gh-pages`.
+PASS. The UI-04 implementation is accepted and deployed to `gh-pages`.
 
 ## Handoff
 
-Commit and push `/Users/caleb/Documents/GitHub/akkordio/js/app.js` to `gh-pages`, leaving the unrelated untracked `.gitignore` alone. After GitHub Pages updates, smoke test `https://calebsussman.github.io/accordi/` with Bella Ciao.
+User can test `https://calebsussman.github.io/accordi/` with Bella Ciao. If a new failure appears, inspect browser Network/Console first; backend and MusicXML frontend workflow are accepted for this fixture.

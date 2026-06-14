@@ -19,6 +19,7 @@ Governor: `GOV-00`
 - `DEPLOY-06` deployed commit `712b2a6` to Render service `accordi` and verified hosted backend behavior at `https://akkordio.onrender.com`.
 - Runtime `UI-04` sub-agent `019ec3d0-d8d0-7be0-9966-9e1c24475591` is assigned to the GitHub Pages frontend worktree `/Users/caleb/Documents/GitHub/akkordio` to fix the MusicXML upload results workflow.
 - `GOV-00` accepted the UI-04 MusicXML workflow repair with caveats after independent browser upload proof on local `gh-pages` content.
+- `GOV-00` pushed the frontend fix to `gh-pages` commit `ca69f0e` and verified public GitHub Pages upload/render/results behavior.
 
 ## What Passed?
 
@@ -45,7 +46,7 @@ Governor: `GOV-00`
 ## What Failed?
 
 - PDF/OCR remains outside Phase 1 and is known unreliable.
-- Frontend MusicXML integration is accepted locally and pending/pushed to GitHub Pages deployment.
+- Frontend MusicXML integration is accepted and deployed to GitHub Pages.
 - Canonical frontend path for the current MusicXML UI fix is `/Users/caleb/Documents/GitHub/akkordio` on branch `gh-pages`.
 
 ## What Is Blocked?
@@ -53,13 +54,13 @@ Governor: `GOV-00`
 - Phase 1 backend MusicXML implementation is accepted locally with caveats.
 - Runtime path hardening remains open because backend paths are relative to the process working directory.
 - Backend deployment is complete for the MusicXML path.
-- Frontend MusicXML workflow repair is accepted locally; public GitHub Pages smoke proof is the remaining deployment check.
+- Frontend MusicXML workflow repair is accepted on public GitHub Pages.
 
 ## What Should Happen Next?
 
-1. Commit and push accepted `gh-pages` frontend fix.
-2. Smoke test `https://calebsussman.github.io/accordi/` after GitHub Pages updates.
-3. If public smoke fails, inspect browser Network/Console before changing backend.
+1. User can test `https://calebsussman.github.io/accordi/` with Bella Ciao.
+2. If user sees a new failure, inspect browser Network/Console before changing backend.
+3. Next development phase should broaden tests to multiple `.mxl` fixtures.
 
 ## Files/Artifacts That Matter
 
@@ -101,5 +102,5 @@ Governor: `GOV-00`
 - Do not describe inline role execution as independent runtime sub-agent work. Actual runtime sub-agent IDs must be recorded when used.
 - Do not treat local backend acceptance as frontend, hosted, or deployment acceptance.
 - Hosted backend is now accepted for the MusicXML path, but frontend UI behavior is still unaccepted.
-- UI-04 local frontend proof used `http://127.0.0.1:3000/` with hosted backend and Bella Ciao; public Pages proof still needs post-push smoke.
+- UI-04 public frontend proof used `https://calebsussman.github.io/accordi/` with hosted backend and Bella Ciao.
 - `gh-pages` currently has an unrelated untracked `.gitignore`; do not delete or overwrite it without explicit authorization.

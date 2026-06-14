@@ -252,3 +252,36 @@
   - Existing untracked `gh-pages` `.gitignore` remains untouched.
 - Next handoff:
   - Commit/push accepted frontend fix to `gh-pages`, then smoke test public GitHub Pages.
+
+## 2026-06-14 - `DEPLOY-06` - GitHub Pages Frontend Deployment
+
+- Goal: deploy accepted UI-04 frontend fix and verify public GitHub Pages workflow.
+- Commands/files inspected:
+  - `git -C /Users/caleb/Documents/GitHub/akkordio add js/app.js`
+  - `git -C /Users/caleb/Documents/GitHub/akkordio commit -m "Fix MusicXML frontend results workflow"`
+  - `git -C /Users/caleb/Documents/GitHub/akkordio push origin gh-pages`
+  - public asset poll for `https://calebsussman.github.io/accordi/js/app.js`
+  - Playwright upload test against `https://calebsussman.github.io/accordi/`
+- Decisions made:
+  - Deploy only `js/app.js` to `gh-pages`.
+  - Leave unrelated untracked `.gitignore` in `gh-pages` untouched.
+- Deployment proof:
+  - `gh-pages` commit: `ca69f0e`
+  - public page URL: `https://calebsussman.github.io/accordi/`
+  - public JS served updated workflow.
+  - Bella Ciao upload completed.
+  - Hosted backend health/upload/musicxml/results all returned 200.
+  - `#accordionPanel` and `#playbackBar` visible after upload.
+  - `#trebleKeyboard` children: 120.
+  - `#bassKeyboard` children: 120.
+  - No captured console warnings/errors.
+- Docs updated:
+  - `governance/governor_audits/GOVERNOR-UI-04__2026-06-14__audit.md`
+  - `governance/agent_checklists.md`
+  - `governance/agent_handoff_notes.md`
+  - `governance/agent_session_log.md`
+- Non-mutation confirmations:
+  - Backend files were not changed.
+  - No PDF/OCR or Render changes were made for this frontend deploy.
+- Next handoff:
+  - User can test public frontend with Bella Ciao; if a new issue appears, inspect browser Network/Console first.
